@@ -95,10 +95,6 @@ const PLAYER1_FRAME_H = 348;
 const PLAYER1_IDLE_FRAMES = 2; // first row
 const PLAYER1_ATTACK_FRAMES = 5; // second row
 
-// Load new player 1 image
-const player1Img = new Image();
-player1Img.src = "goombaAI.png";
-
 // Load background image
 const bgImg = new Image();
 bgImg.src = "bowserbackground.png";
@@ -307,7 +303,9 @@ const closeMenuBtnSelect = charMenuModal.querySelector(
 if (closeMenuBtnSelect)
   closeMenuBtnSelect.onclick = () => {
     charMenuModal.style.display = "none";
-    menuMusic.play();
+    menuMusic.play().catch((error) => {
+      console.log("Menu music playback failed:", error.message);
+    });
     resumeGame();
   };
 // Only show charMenuBtn and charMenuModal on character select
@@ -387,7 +385,9 @@ if (closeMenuBtn)
   closeMenuBtn.onclick = () => {
     fightMenuModal.style.display = "none";
     document.getElementById("ui").style.display = "";
-    gameMusic.play();
+    gameMusic.play().catch((error) => {
+      console.log("Music playback failed:", error.message);
+    });
     resumeGame();
   };
 fightMenuModal.querySelector("#save-game-modal").onclick = () => {
@@ -481,7 +481,9 @@ function showCharacterSelect() {
   // Pause fight music, play menu music
   gameMusic.pause();
   menuMusic.currentTime = 0;
-  menuMusic.play();
+  menuMusic.play().catch((error) => {
+    console.log("Menu music playback failed:", error.message);
+  });
   charMenuBtn.style.display = "";
 }
 
@@ -638,7 +640,9 @@ document.getElementById("start-fight").onclick = () => {
   // Pause menu music, play fight music
   menuMusic.pause();
   gameMusic.currentTime = 0;
-  gameMusic.play();
+  gameMusic.play().catch((error) => {
+    console.log("Music playback failed:", error.message);
+  });
   setCharMenuVisibility(false);
   setFightMenuVisibility(true);
   attackBtn.disabled = false;
@@ -720,6 +724,23 @@ function draw() {
     x: positions.boss.x + (boss.attackOffset?.x || 0),
     y: positions.boss.y + (boss.attackOffset?.y || 0) + bossDeathY,
   };
+
+  // --- SCALE LOGIC START ---
+  let scale = 1.0;
+  if (bossAttackAnim) {
+    // Calculate how far Bowser is from his start position (0 = start, 1 = max lunge)
+    const maxDist = 120; // Tune this to match your max lunge distance
+    const dist = Math.sqrt(
+      (boss.attackOffset?.x || 0) ** 2 + (boss.attackOffset?.y || 0) ** 2
+    );
+    // Scale from 1.0 to 1.3 at max lunge
+    scale = 1.0 + 1.0 * Math.min(dist / maxDist, 1);
+  }
+  ctx.translate(bossPos.x, bossPos.y);
+  ctx.scale(scale, scale);
+  ctx.translate(-bossPos.x, -bossPos.y);
+  // --- SCALE LOGIC END ---
+
   if (boss.anim > 0) {
     ctx.translate(bossPos.x, bossPos.y);
     ctx.rotate((Math.random() - 0.5) * 0.1 * boss.anim); // shake
@@ -879,6 +900,8 @@ function draw() {
         }
       } else if (
         i === 0 &&
+        typeof player1Img !== "undefined" &&
+        player1Img &&
         player1Img.complete &&
         player1Img.naturalWidth > 0
       ) {
@@ -1691,13 +1714,21 @@ function resumeGame() {
 }
 // --- Patch playSound to track SFX ---
 function playSound(name, volume = 1) {
-  const audio = new Audio(name);
-  audio.volume = volume * sfxVolume;
-  audio.play();
-  // Track SFX for pausing if needed
-  if (isGamePaused) {
-    audio.pause();
-    pausedSFX.push(audio);
+  try {
+    const audio = new Audio(name);
+    audio.volume = volume * sfxVolume;
+    audio.play().catch((error) => {
+      // Silently handle audio playback errors (common with autoplay restrictions)
+      console.log("Audio playback failed:", error.message);
+    });
+    // Track SFX for pausing if needed
+    if (isGamePaused) {
+      audio.pause();
+      pausedSFX.push(audio);
+    }
+  } catch (error) {
+    // Handle any other audio creation errors
+    console.log("Audio creation failed:", error.message);
   }
 }
 // --- Patch gameLoop to respect pause ---
@@ -1822,7 +1853,9 @@ function restartGame() {
   floatingDamages = [];
   // Restart music
   gameMusic.currentTime = 0;
-  gameMusic.play();
+  gameMusic.play().catch((error) => {
+    console.log("Music playback failed:", error.message);
+  });
   // Redraw
   draw();
 }
@@ -2359,7 +2392,9 @@ titleScreen.addEventListener("click", () => {
   document.getElementById("character-select-screen").style.display = "";
   showCharacterSelect();
   menuMusic.currentTime = 0;
-  menuMusic.play();
+  menuMusic.play().catch((error) => {
+    console.log("Menu music playback failed:", error.message);
+  });
 });
 
 // Play wrong.wav when clicking a disabled button
