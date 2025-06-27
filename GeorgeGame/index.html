@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>4 Player Boss Fight Game</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="title-screen">
+      <canvas id="title-canvas"></canvas>
+      <div id="title-text">Click to start</div>
+    </div>
+    <div id="character-select-screen">
+      <h2>Select 4 Characters</h2>
+      <div id="sprite-grid"></div>
+      <h3 id="selected-characters-heading">Selected Characters</h3>
+      <div id="selected-characters"></div>
+      <button id="start-fight" disabled>Start Fight</button>
+      <button id="load-save-select">Load Save</button>
+      <div id="music-controls-select"></div>
+    </div>
+    <div id="game-container" style="display: none">
+      <canvas id="game-canvas"></canvas>
+      <div id="turn-indicator"></div>
+      <div id="ui">
+        <button id="attack-btn">Attack</button>
+        <button id="special-attack-btn" disabled>Special Attack</button>
+        <div id="audio-controls">
+          <input
+            id="music-volume"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value="0.5"
+          />
+          <button id="music-mute" title="Mute/Unmute" style="margin-left: 8px">
+            🔊
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- Save/Load Modal -->
+    <div id="save-modal" class="modal">
+      <div class="modal-content">
+        <h2 id="modal-title">Save Game</h2>
+        <div id="save-input-section">
+          <input type="text" id="save-name" placeholder="Enter save name..." />
+          <span
+            id="overwrite-warning"
+            style="
+              display: none;
+              color: #ffeb3b;
+              font-size: 0.9em;
+              margin-top: 4px;
+              text-shadow: 1px 1px 0 #2d1b47;
+            "
+            >Overwrite save?</span
+          >
+          <div id="save-slots-save"></div>
+          <div class="modal-buttons">
+            <button id="confirm-save">Save</button>
+            <button id="close-modal">Close</button>
+          </div>
+        </div>
+        <div id="load-section">
+          <h3>Saved Games:</h3>
+          <div id="save-slots"></div>
+        </div>
+      </div>
+    </div>
+    <div id="confirm-modal" style="display: none">
+      <div id="confirm-modal-content">
+        <p>
+          Are you sure you want to return to the main menu? Unsaved progress
+          will be lost.
+        </p>
+        <div class="modal-buttons">
+          <button id="confirm-yes">Yes</button>
+          <button id="confirm-no">No</button>
+        </div>
+      </div>
+    </div>
+    <script src="game.js"></script>
+  </body>
+</html>
