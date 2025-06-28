@@ -553,13 +553,14 @@ let lastClickTime = 0;
 const CLICK_DEBOUNCE = 100; // 100ms debounce
 
 function cleanupSelectedArrays() {
-  // Remove any undefined entries and gaps from the arrays
-  for (let i = selectedSprites.length - 1; i >= 0; i--) {
-    if (!selectedSprites[i]) {
-      selectedSprites.splice(i, 1);
-      selectedNames.splice(i, 1);
-    }
+  // Always keep arrays at length 4, filling with nulls if needed
+  for (let i = 0; i < 4; i++) {
+    if (typeof selectedSprites[i] === "undefined") selectedSprites[i] = null;
+    if (typeof selectedNames[i] === "undefined") selectedNames[i] = "";
   }
+  // Remove any extras
+  selectedSprites.length = 4;
+  selectedNames.length = 4;
 }
 
 function toggleSelectSprite(idx, file, type) {
@@ -594,108 +595,66 @@ function toggleSelectSprite(idx, file, type) {
     playSound(SFX.clank1, 0.7);
     const playerData = selectedSprites[alreadySelected];
 
-    console.log(`Removing character - type: ${type}, idx: ${idx}`);
-    console.log(`Before removal - playerData:`, playerData);
-
     if (playerData && (playerData.main || playerData.sidekick)) {
       // New format - remove only the specific character type
       if (type === "main") {
         if (playerData.sidekick && playerData.sidekick.file) {
           selectedSprites[alreadySelected] = { sidekick: playerData.sidekick };
-          console.log(`After removing main - keeping sidekick:`, {
-            sidekick: playerData.sidekick,
-          });
         } else {
-          // No valid sidekick, remove entire slot
-          selectedSprites.splice(alreadySelected, 1);
-          selectedNames.splice(alreadySelected, 1);
-          console.log(
-            `After removing main - no valid sidekick, removed entire slot`
-          );
+          // No valid sidekick, set slot to null
+          selectedSprites[alreadySelected] = null;
+          selectedNames[alreadySelected] = "";
         }
       } else if (type === "sidekick") {
         if (playerData.main && playerData.main.file) {
           selectedSprites[alreadySelected] = { main: playerData.main };
-          console.log(`After removing sidekick - keeping main:`, {
-            main: playerData.main,
-          });
         } else {
-          // No valid main, remove entire slot
-          selectedSprites.splice(alreadySelected, 1);
-          selectedNames.splice(alreadySelected, 1);
-          console.log(
-            `After removing sidekick - no valid main, removed entire slot`
-          );
+          // No valid main, set slot to null
+          selectedSprites[alreadySelected] = null;
+          selectedNames[alreadySelected] = "";
         }
       }
       cleanupSelectedArrays();
     } else if (playerData && playerData.idx === idx) {
-      // Old format with type property - remove entire slot
-      selectedSprites.splice(alreadySelected, 1);
-      selectedNames.splice(alreadySelected, 1);
-      console.log(`After removing old format character - removed entire slot`);
+      // Old format with type property - set slot to null
+      selectedSprites[alreadySelected] = null;
+      selectedNames[alreadySelected] = "";
       cleanupSelectedArrays();
     }
   } else {
     // Find the appropriate player slot
     let playerIndex = -1;
 
-    console.log("Looking for slot for type:", type);
-    console.log("Current selectedSprites:", selectedSprites);
-
     // First, try to find a player that already has a character of the opposite type
-    for (let i = 0; i < selectedSprites.length; i++) {
+    for (let i = 0; i < 4; i++) {
       const playerData = selectedSprites[i];
       if (playerData) {
         const hasMain = !!(playerData.main || playerData.type === "main");
         const hasSidekick = !!(
           playerData.sidekick || playerData.type === "sidekick"
         );
-
-        console.log(
-          `Slot ${i}: hasMain=${hasMain}, hasSidekick=${hasSidekick}`
-        );
-
         if (type === "main" && !hasMain) {
           playerIndex = i;
-          console.log(`Found slot ${i} for main character`);
           break;
         } else if (type === "sidekick" && !hasSidekick) {
           playerIndex = i;
-          console.log(`Found slot ${i} for sidekick character`);
           break;
         }
       }
     }
 
-    // If no existing player slot found, find the first available slot or create a new one
+    // If no existing player slot found, find the first available slot (null)
     if (playerIndex === -1) {
-      // Count actual valid entries to determine if we can add more
-      const validEntries = selectedSprites.filter((s) => s).length;
-
-      if (validEntries < 4) {
-        // Find the first available slot (including gaps)
-        for (let i = 0; i < 4; i++) {
-          if (!selectedSprites[i]) {
-            playerIndex = i;
-            console.log(`Found available slot ${i}`);
-            break;
-          }
-        }
-
-        // If no gaps found, add to the end
-        if (playerIndex === -1) {
-          playerIndex = selectedSprites.length;
-          console.log(`Creating new slot ${playerIndex}`);
+      for (let i = 0; i < 4; i++) {
+        if (!selectedSprites[i]) {
+          playerIndex = i;
+          break;
         }
       }
     }
 
-    console.log("Final playerIndex:", playerIndex);
-
     if (playerIndex !== -1 && playerIndex < 4) {
       const existingPlayer = selectedSprites[playerIndex];
-
       if (!existingPlayer) {
         // First character for this player
         selectedSprites[playerIndex] = { idx, file, type };
@@ -784,11 +743,20 @@ function updateSelectedCharacters() {
   }
 
   for (let i = 0; i < 4; i++) {
-    // Add player number badge above each selected-char
+    // Create wrapper for badge and box
+    const wrapper = document.createElement("div");
+    wrapper.className = "selected-char-wrapper";
+    wrapper.style.display = "flex";
+    wrapper.style.flexDirection = "column";
+    wrapper.style.alignItems = "center";
+    wrapper.style.justifyContent = "flex-start";
+    wrapper.style.position = "relative";
+
+    // Player number badge
     const numberBadge = document.createElement("div");
     numberBadge.className = "player-number-badge";
     numberBadge.textContent = i + 1;
-    container.appendChild(numberBadge);
+    wrapper.appendChild(numberBadge);
 
     const div = document.createElement("div");
     div.className = "selected-char";
@@ -927,8 +895,8 @@ function updateSelectedCharacters() {
       removeBtn.title = "Remove character pair";
       removeBtn.onclick = (e) => {
         e.stopPropagation();
-        selectedSprites.splice(i, 1);
-        selectedNames.splice(i, 1);
+        selectedSprites[i] = null;
+        selectedNames[i] = "";
         cleanupSelectedArrays();
         updateSelectedCharacters();
       };
@@ -936,24 +904,28 @@ function updateSelectedCharacters() {
     }
 
     // Set background color
-    if (mainChar && mainChar.file && spriteColors[mainChar.file]) {
-      div.style.background = spriteColors[mainChar.file];
-    } else if (
-      sidekickChar &&
-      sidekickChar.file &&
-      spriteColors[sidekickChar.file]
+    if (
+      (mainChar && mainChar.file && spriteColors[mainChar.file]) ||
+      (sidekickChar && sidekickChar.file && spriteColors[sidekickChar.file])
     ) {
-      div.style.background = spriteColors[sidekickChar.file];
-    } else {
-      div.style.background = "#3a235a";
-    }
+      if (mainChar && mainChar.file && spriteColors[mainChar.file]) {
+        div.style.background = spriteColors[mainChar.file];
+      } else if (
+        sidekickChar &&
+        sidekickChar.file &&
+        spriteColors[sidekickChar.file]
+      ) {
+        div.style.background = spriteColors[sidekickChar.file];
+      }
+    } // else do not set background, let CSS handle empty
 
     // Empty slot styling
     if (!playerData) {
       div.classList.add("empty");
     }
 
-    container.appendChild(div);
+    wrapper.appendChild(div);
+    container.appendChild(wrapper);
   }
 
   // Highlight selected and update grid box styles
