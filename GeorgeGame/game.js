@@ -18,7 +18,11 @@ let sfxVolume = 0.7;
 
 const canvas = document.getElementById("game-canvas");
 const ctx = canvas.getContext("2d");
-const attackBtn = document.getElementById("attack-btn");
+const mainRegularBtn = document.getElementById("main-regular-btn");
+const mainSpecialBtn = document.getElementById("main-special-btn");
+const sidekickRegularBtn = document.getElementById("sidekick-regular-btn");
+const sidekickSpecialBtn = document.getElementById("sidekick-special-btn");
+const executeAttacksBtn = document.getElementById("execute-attacks-btn");
 const turnIndicator = document.getElementById("turn-indicator");
 
 const PLAYER_COLORS = ["#4fc3f7", "#81c784", "#ffd54f", "#e57373"];
@@ -45,6 +49,13 @@ let players = [
     specialCharge: 0,
     specialReady: false,
     teamBuff: 0, // +1 damage from Toad
+    // New attack cycle properties
+    mainSpecialCharges: 2, // Can use special attack twice per fight
+    sidekickSpecialCharges: 2, // Can use special attack twice per fight
+    mainAttackSelected: false, // Whether main character has selected attack type
+    sidekickAttackSelected: false, // Whether sidekick has selected attack type
+    mainAttackType: null, // 'regular' or 'special'
+    sidekickAttackType: null, // 'regular' or 'special'
   },
   {
     hp: PLAYER_MAX_HP,
@@ -56,6 +67,12 @@ let players = [
     specialCharge: 0,
     specialReady: false,
     teamBuff: 0,
+    mainSpecialCharges: 2,
+    sidekickSpecialCharges: 2,
+    mainAttackSelected: false,
+    sidekickAttackSelected: false,
+    mainAttackType: null,
+    sidekickAttackType: null,
   },
   {
     hp: PLAYER_MAX_HP,
@@ -67,6 +84,12 @@ let players = [
     specialCharge: 0,
     specialReady: false,
     teamBuff: 0,
+    mainSpecialCharges: 2,
+    sidekickSpecialCharges: 2,
+    mainAttackSelected: false,
+    sidekickAttackSelected: false,
+    mainAttackType: null,
+    sidekickAttackType: null,
   },
   {
     hp: PLAYER_MAX_HP,
@@ -78,6 +101,12 @@ let players = [
     specialCharge: 0,
     specialReady: false,
     teamBuff: 0,
+    mainSpecialCharges: 2,
+    sidekickSpecialCharges: 2,
+    mainAttackSelected: false,
+    sidekickAttackSelected: false,
+    mainAttackType: null,
+    sidekickAttackType: null,
   },
 ];
 let boss = {
@@ -708,8 +737,6 @@ function updateSelectedCharacters() {
   const container = document.getElementById("selected-characters");
   container.innerHTML = "";
 
-  console.log("updateSelectedCharacters - selectedSprites:", selectedSprites);
-
   // Sprite color mapping
   const spriteColors = {
     "Sidekick_Peach.png": "rgb(247,164,187)",
@@ -804,7 +831,7 @@ function updateSelectedCharacters() {
         );
       };
       img.onload = () => {
-        console.log("Successfully loaded main character image:", mainChar.file);
+        // Removed debug log for loaded main character image
       };
       mainCharDiv.appendChild(img);
       mainCharDiv.style.cursor = "pointer";
@@ -849,10 +876,7 @@ function updateSelectedCharacters() {
         );
       };
       img.onload = () => {
-        console.log(
-          "Successfully loaded sidekick character image:",
-          sidekickChar.file
-        );
+        // Removed debug log for loaded sidekick character image
       };
       sidekickCharDiv.appendChild(img);
       sidekickCharDiv.style.cursor = "pointer";
@@ -1081,6 +1105,9 @@ document.getElementById("start-fight").onclick = () => {
     players[i].teamBuff = 0;
     players[i].hasAttackedThisTurn = false; // Track if main character has attacked
     players[i].sidekickHasAttackedThisTurn = false; // Track if sidekick has attacked
+    // Set special charges to 2 at the start of the fight
+    players[i].mainSpecialCharges = 2;
+    players[i].sidekickSpecialCharges = 2;
   }
 
   boss.hp = BOSS_MAX_HP;
@@ -1105,7 +1132,6 @@ document.getElementById("start-fight").onclick = () => {
   });
   setCharMenuVisibility(false);
   setFightMenuVisibility(true);
-  attackBtn.disabled = false;
 };
 
 function draw() {
@@ -1852,14 +1878,19 @@ function updateFloatingDamages() {
 }
 
 function nextPlayer() {
-  // Reset attack flags for the new player
-  players[currentPlayer].hasAttackedThisTurn = false;
-  players[currentPlayer].sidekickHasAttackedThisTurn = false;
+  // Reset attack selection for the current player
+  players[currentPlayer].mainAttackSelected = false;
+  players[currentPlayer].sidekickAttackSelected = false;
+  players[currentPlayer].mainAttackType = null;
+  players[currentPlayer].sidekickAttackType = null;
 
   // Find next alive player
   do {
     currentPlayer = (currentPlayer + 1) % 4;
   } while (!players[currentPlayer].alive);
+
+  // Update UI for new player
+  updateAttackButtons();
 }
 
 function playerAttack() {
@@ -2128,7 +2159,6 @@ function sidekickAttack() {
     } else {
       // Mark this player as having completed their turn
       playersThisRound.push(currentPlayer);
-      if (window.updateSpecialAttackBtn) window.updateSpecialAttackBtn();
 
       // Check if all alive players have completed their turns
       const alivePlayers = players
@@ -2162,19 +2192,19 @@ function triggerScreenShake() {
 }
 
 function bossAttack() {
-  // Add 1 charge to all players at the beginning of boss attack phase
+  // Reset attack selection state for all players at the beginning of boss attack phase
   players.forEach((player) => {
-    if (player.alive && player.specialCharge < 3) {
-      player.specialCharge++;
-      if (player.specialCharge >= 3) {
-        player.specialReady = true;
-      }
+    if (player.alive) {
+      player.mainAttackSelected = false;
+      player.sidekickAttackSelected = false;
+      player.mainAttackType = null;
+      player.sidekickAttackType = null;
     }
     // Reset attack flags for all players at the start of a new round
     player.hasAttackedThisTurn = false;
     player.sidekickHasAttackedThisTurn = false;
   });
-  if (window.updateSpecialAttackBtn) window.updateSpecialAttackBtn();
+  updateAttackButtons();
 
   const positions = getCenteredPositions();
   updateTurnIndicator();
@@ -2292,7 +2322,6 @@ function bossAttack() {
               if (players.every((p) => !p.alive)) {
                 gameState = "gameover";
                 turnIndicator.textContent = "Boss Wins!";
-                attackBtn.disabled = true;
                 gameMusic.pause();
               } else {
                 // Reset for next round
@@ -2301,17 +2330,8 @@ function bossAttack() {
                 currentPlayer = players.findIndex((p) => p.alive);
                 gameState = "player";
                 updateTurnIndicator();
-                attackBtn.disabled = false;
-                // --- Special Attack Button Enablement for Player 1 ---
-                if (
-                  players[0].alive &&
-                  players[0].specialReady &&
-                  gameState === "player"
-                ) {
-                  specialAttackBtn.disabled = false;
-                }
-                if (window.updateSpecialAttackBtn)
-                  window.updateSpecialAttackBtn();
+                // Update attack buttons for the new player
+                updateAttackButtons();
               }
             }, 400);
           }
@@ -2388,8 +2408,6 @@ function bossAttack() {
     boss.hp = 0;
     gameState = "gameover";
     turnIndicator.textContent = "Players Win!";
-    attackBtn.disabled = true;
-    specialAttackBtn.disabled = true;
     bossDeathAnim = true;
     bossDeathFrame = 0;
     bossDeathFrameTimer = 0;
@@ -2406,8 +2424,7 @@ function bossAttack() {
       currentPlayer = players.findIndex((p) => p.alive);
       gameState = "player";
       updateTurnIndicator();
-      attackBtn.disabled = false;
-      updateSpecialAttackBtn();
+      updateAttackButtons();
     }, 1200);
     return;
   }
@@ -2621,9 +2638,10 @@ function gameLoop() {
   animationFrameId = requestAnimationFrame(gameLoop);
 }
 
-attackBtn.addEventListener("click", () => {
-  if (gameState === "player") playerAttack();
-});
+// Remove old attack button event listener - no longer needed with new UI
+// attackBtn.addEventListener("click", () => {
+//   if (gameState === "player") playerAttack();
+// });
 
 function restartGame() {
   // Reset players
@@ -2657,7 +2675,8 @@ function restartGame() {
   gameState = "player";
   playersThisRound = [];
   updateTurnIndicator();
-  attackBtn.disabled = false;
+  // Remove old attack button reference - no longer needed with new UI
+  // attackBtn.disabled = false;
   // Reset player 1 animation
   player1Frame = 0;
   player1AttackAnim = false;
@@ -2674,6 +2693,13 @@ function restartGame() {
     p.specialReady = false;
     p.hasAttackedThisTurn = false;
     p.sidekickHasAttackedThisTurn = false;
+    // Reset new attack cycle properties
+    p.mainSpecialCharges = 2;
+    p.sidekickSpecialCharges = 2;
+    p.mainAttackSelected = false;
+    p.sidekickAttackSelected = false;
+    p.mainAttackType = null;
+    p.sidekickAttackType = null;
   });
   // Show UI again
   const ui = document.getElementById("ui");
@@ -2683,8 +2709,8 @@ function restartGame() {
   // Show turn indicator again
   const turnIndicatorElem = document.getElementById("turn-indicator");
   if (turnIndicatorElem) turnIndicatorElem.style.display = "";
-  // Update special attack button
-  if (window.updateSpecialAttackBtn) window.updateSpecialAttackBtn();
+  // Update attack buttons
+  updateAttackButtons();
   draw();
 }
 
@@ -2783,7 +2809,8 @@ function loadGameState(saveName) {
     bossFrame = saveData.bossFrame;
 
     updateTurnIndicator();
-    attackBtn.disabled = gameState !== "player";
+    // Remove old attack button reference - no longer needed with new UI
+    // attackBtn.disabled = gameState !== "player";
     draw();
     // If character select is visible, switch to fight screen
     const charSel = document.getElementById("character-select-screen");
@@ -3360,7 +3387,6 @@ function doSpecialAttack(idx) {
   // Reset special charge
   p.specialCharge = 0;
   p.specialReady = false;
-  if (window.updateSpecialAttackBtn) window.updateSpecialAttackBtn();
 
   setTimeout(() => {
     boss.anim = 0;
@@ -3370,8 +3396,6 @@ function doSpecialAttack(idx) {
       boss.hp = 0;
       gameState = "gameover";
       turnIndicator.textContent = "Players Win!";
-      attackBtn.disabled = true;
-      specialAttackBtn.disabled = true;
       bossDeathAnim = true;
       bossDeathFrame = 0;
       bossDeathFrameTimer = 0;
@@ -3406,81 +3430,8 @@ function showFloatingDamage(x, y, text, color = "#ff5252", label = "") {
   });
 }
 
-// --- Special Attack Button Logic ---
-const specialAttackBtn = document.getElementById("special-attack-btn");
-function updateSpecialAttackBtn() {
-  const p = players[currentPlayer];
-  console.log("updateSpecialAttackBtn", {
-    currentPlayer,
-    name: players[currentPlayer].name,
-    specialReady: players[currentPlayer].specialReady,
-    specialCharge: players[currentPlayer].specialCharge,
-    alive: players[currentPlayer].alive,
-    gameState,
-  });
-  specialAttackBtn.disabled =
-    !p.alive || !p.specialReady || gameState !== "player";
-  if (!p.specialReady) {
-    specialAttackBtn.textContent = `Special (${p.specialCharge}/3)`;
-  } else {
-    specialAttackBtn.textContent = "Special Attack!";
-  }
-}
-window.updateSpecialAttackBtn = updateSpecialAttackBtn;
-specialAttackBtn.addEventListener("click", () => {
-  if (gameState !== "player" || !players[currentPlayer].alive) return;
-  if (!players[currentPlayer].specialReady) return;
-  specialAttackBtn.disabled = true;
-  doSpecialAttack(currentPlayer);
-});
-updateSpecialAttackBtn();
-
-// --- Drag-and-drop helpers ---
-// Helper to get drag image path from sprite filename
-function getDragImagePath(file) {
-  // file is e.g. 'Mario_Cape.png' -> 'spriteDrag/Mario_Cape_drag.png'
-  const base = file.replace(/\.png$/, "");
-  return `spriteDrag/${base}_drag.png`;
-}
-
-// Preload all drag images
-const dragImageCache = new Map();
-function preloadDragImages() {
-  const allSprites = [
-    "Mario_Cape.png",
-    "Mario_Cat.png",
-    "Mario_Fire.png",
-    "Mario_Giant.png",
-    "Mario_Penguin.png",
-    "Mario_Raccoon.png",
-    "Sidekick_DK.png",
-    "Sidekick_Luigi.png",
-    "Sidekick_Peach.png",
-    "Sidekick_Toad.png",
-    "Sidekick_Waluigi.png",
-    "Sidekick_Wario.png",
-  ];
-
-  allSprites.forEach((file) => {
-    const dragImg = new Image();
-    dragImg.src = getDragImagePath(file);
-    dragImg.onload = () => {
-      dragImageCache.set(file, dragImg);
-    };
-    dragImg.onerror = () => {
-      console.warn(`Failed to load drag image for ${file}`);
-    };
-  });
-}
-
-// Call preload when the page loads
-preloadDragImages();
-
 function createDragImage(file, fallbackImg) {
-  const dragImg = dragImageCache.get(file);
-  if (dragImg && dragImg.complete && dragImg.naturalWidth > 0) {
-    return dragImg;
-  }
+  // Use fallback image directly since drag images don't exist
   return fallbackImg;
 }
 
@@ -3511,18 +3462,21 @@ function makeSpriteOptionDraggable(opt, idx, file, type, isSelected) {
       // Set global drag data for highlighting
       currentDragData = dragData;
       e.dataTransfer.setData("application/json", JSON.stringify(dragData));
-      // Use the drag image from spriteDrag folder
-      const dragImg = new window.Image();
-      dragImg.src = getDragImagePath(file);
-      dragImg.onload = () => {
+      // Use the original sprite image for drag
+      const img = opt.querySelector("img");
+      if (
+        img &&
+        img.complete &&
+        img.naturalWidth > 0 &&
+        img.naturalHeight > 0
+      ) {
         const canvas = document.createElement("canvas");
         canvas.width = 72;
         canvas.height = 72;
         const ctx = canvas.getContext("2d");
-        // Draw drag image centered and scaled
         let drawW = 72,
           drawH = 72;
-        const aspect = dragImg.naturalWidth / dragImg.naturalHeight;
+        const aspect = img.naturalWidth / img.naturalHeight;
         if (aspect > 1) {
           drawW = 72;
           drawH = 72 / aspect;
@@ -3531,42 +3485,9 @@ function makeSpriteOptionDraggable(opt, idx, file, type, isSelected) {
           drawW = 72 * aspect;
         }
         ctx.clearRect(0, 0, 72, 72);
-        ctx.drawImage(
-          dragImg,
-          (72 - drawW) / 2,
-          (72 - drawH) / 2,
-          drawW,
-          drawH
-        );
+        ctx.drawImage(img, (72 - drawW) / 2, (72 - drawH) / 2, drawW, drawH);
         e.dataTransfer.setDragImage(canvas, 36, 36);
-      };
-      dragImg.onerror = () => {
-        // Fallback to current logic
-        const img = opt.querySelector("img");
-        if (
-          img &&
-          img.complete &&
-          img.naturalWidth > 0 &&
-          img.naturalHeight > 0
-        ) {
-          const canvas = document.createElement("canvas");
-          canvas.width = 72;
-          canvas.height = 72;
-          const ctx = canvas.getContext("2d");
-          let drawW = 72,
-            drawH = 72;
-          const aspect = img.naturalWidth / img.naturalHeight;
-          if (aspect > 1) {
-            drawW = 72;
-            drawH = 72 / aspect;
-          } else {
-            drawH = 72;
-            drawW = 72 * aspect;
-          }
-          ctx.drawImage(img, (72 - drawW) / 2, (72 - drawH) / 2, drawW, drawH);
-          e.dataTransfer.setDragImage(canvas, 36, 36);
-        }
-      };
+      }
     };
     opt.ondragend = (e) => {
       // Clear global drag data if drag ends without dropping
@@ -3944,17 +3865,16 @@ function makeCharBoxDraggable(box, idx, file, type, playerIndex, charType) {
     currentDragData = dragData;
     console.log("Dragging from character box:", dragData);
     e.dataTransfer.setData("application/json", JSON.stringify(dragData));
-    // Use the drag image from spriteDrag folder
-    const dragImg = new window.Image();
-    dragImg.src = getDragImagePath(file);
-    dragImg.onload = () => {
+    // Use the original sprite image for drag
+    const img = box.querySelector("img");
+    if (img && img.complete && img.naturalWidth > 0 && img.naturalHeight > 0) {
       const canvas = document.createElement("canvas");
       canvas.width = 72;
       canvas.height = 72;
       const ctx = canvas.getContext("2d");
       let drawW = 72,
         drawH = 72;
-      const aspect = dragImg.naturalWidth / dragImg.naturalHeight;
+      const aspect = img.naturalWidth / img.naturalHeight;
       if (aspect > 1) {
         drawW = 72;
         drawH = 72 / aspect;
@@ -3963,39 +3883,571 @@ function makeCharBoxDraggable(box, idx, file, type, playerIndex, charType) {
         drawW = 72 * aspect;
       }
       ctx.clearRect(0, 0, 72, 72);
-      ctx.drawImage(dragImg, (72 - drawW) / 2, (72 - drawH) / 2, drawW, drawH);
+      ctx.drawImage(img, (72 - drawW) / 2, (72 - drawH) / 2, drawW, drawH);
       e.dataTransfer.setDragImage(canvas, 36, 36);
-    };
-    dragImg.onerror = () => {
-      // Fallback to current logic
-      const img = box.querySelector("img");
-      if (
-        img &&
-        img.complete &&
-        img.naturalWidth > 0 &&
-        img.naturalHeight > 0
-      ) {
-        const canvas = document.createElement("canvas");
-        canvas.width = 72;
-        canvas.height = 72;
-        const ctx = canvas.getContext("2d");
-        let drawW = 72,
-          drawH = 72;
-        const aspect = img.naturalWidth / img.naturalHeight;
-        if (aspect > 1) {
-          drawW = 72;
-          drawH = 72 / aspect;
-        } else {
-          drawH = 72;
-          drawW = 72 * aspect;
-        }
-        ctx.drawImage(img, (72 - drawW) / 2, (72 - drawH) / 2, drawW, drawH);
-        e.dataTransfer.setDragImage(canvas, 36, 36);
-      }
-    };
+    }
   };
   box.ondragend = (e) => {
     // Clear global drag data if drag ends without dropping
     currentDragData = null;
   };
 }
+
+// --- Attack Selection Functions ---
+function selectMainAttack(type) {
+  const player = players[currentPlayer];
+  if (!player.alive || gameState !== "player") return;
+
+  // Clear previous selection
+  player.mainAttackSelected = false;
+  player.mainAttackType = null;
+
+  // Set new selection
+  player.mainAttackSelected = true;
+  player.mainAttackType = type;
+
+  // Update UI
+  updateAttackButtons();
+  playSound(SFX.select, 0.5);
+}
+
+function selectSidekickAttack(type) {
+  const player = players[currentPlayer];
+  if (!player.alive || gameState !== "player") return;
+
+  // Clear previous selection
+  player.sidekickAttackSelected = false;
+  player.sidekickAttackType = null;
+
+  // Set new selection
+  player.sidekickAttackSelected = true;
+  player.sidekickAttackType = type;
+
+  // Update UI
+  updateAttackButtons();
+  playSound(SFX.select, 0.5);
+}
+
+function updateAttackButtons() {
+  const player = players[currentPlayer];
+  if (!player || !player.alive) return;
+
+  // Update main character buttons
+  mainRegularBtn.classList.toggle(
+    "selected",
+    player.mainAttackType === "regular"
+  );
+  mainSpecialBtn.classList.toggle(
+    "selected",
+    player.mainAttackType === "special"
+  );
+  mainSpecialBtn.disabled = player.mainSpecialCharges <= 0;
+
+  // Display main special charges in current/max format
+  if (player.mainSpecialCharges > 0) {
+    mainSpecialBtn.textContent = `Special Attack (${player.mainSpecialCharges}/2)`;
+  } else {
+    mainSpecialBtn.textContent = "No attacks left!";
+  }
+
+  // Update sidekick buttons
+  sidekickRegularBtn.classList.toggle(
+    "selected",
+    player.sidekickAttackType === "regular"
+  );
+  sidekickSpecialBtn.classList.toggle(
+    "selected",
+    player.sidekickAttackType === "special"
+  );
+  sidekickSpecialBtn.disabled = player.sidekickSpecialCharges <= 0;
+
+  // Display sidekick special charges in current/max format
+  if (player.sidekickSpecialCharges > 0) {
+    sidekickSpecialBtn.textContent = `Special Attack (${player.sidekickSpecialCharges}/2)`;
+  } else {
+    sidekickSpecialBtn.textContent = "No attacks left!";
+  }
+
+  // Update execute button
+  executeAttacksBtn.disabled =
+    !player.mainAttackSelected || !player.sidekickAttackSelected;
+}
+
+function executeAttacks() {
+  const player = players[currentPlayer];
+  if (!player.alive || gameState !== "player") return;
+  if (!player.mainAttackSelected || !player.sidekickAttackSelected) return;
+
+  executeAttacksBtn.disabled = true;
+
+  // Execute main character attack first
+  if (player.mainAttackType === "special") {
+    doMainSpecialAttack();
+  } else {
+    doMainRegularAttack();
+  }
+}
+
+function doMainRegularAttack() {
+  const player = players[currentPlayer];
+  const positions = getCenteredPositions();
+
+  // Start attack animation for player 1
+  if (currentPlayer === 0) {
+    player1AttackAnim = true;
+    player1AttackAnimFrame = 0;
+  }
+
+  playSound(SFX.playerAttack, 0.5);
+
+  // Attack animation with wind-up
+  let animFrames = 48;
+  let damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+  let pos = positions.players[currentPlayer];
+  let dx = (positions.boss.x - pos.x) * 0.25;
+  let dy = (positions.boss.y - pos.y) * 0.25;
+  let windupDist = -30;
+
+  let anim = () => {
+    players[currentPlayer].anim = animFrames / 48;
+
+    // Animate player 1 attack frames
+    if (currentPlayer === 0 && player1AttackAnim) {
+      if (animFrames > 32) {
+        player1AttackAnimFrame = 0;
+      } else if (animFrames > 16) {
+        player1AttackAnimFrame = Math.min(
+          PLAYER1_ATTACK_FRAMES - 1,
+          Math.floor(5 - (animFrames - 17) / 5.4)
+        );
+      } else {
+        player1AttackAnimFrame = PLAYER1_ATTACK_FRAMES - 1;
+      }
+    }
+
+    if (animFrames > 21) {
+      // Wind-up: move back
+      let t = (48 - animFrames) / 6;
+      players[currentPlayer].attackOffset = {
+        x: windupDist * t,
+        y: 0,
+      };
+    } else if (animFrames > 12) {
+      // Lunge forward
+      let t = (32 - animFrames) / 9;
+      players[currentPlayer].attackOffset = {
+        x: windupDist * (1 - t) + dx * t,
+        y: dy * t,
+      };
+    } else {
+      // Return
+      let t = (12 - animFrames) / 12;
+      players[currentPlayer].attackOffset = {
+        x: dx * (1 - t),
+        y: dy * (1 - t),
+      };
+    }
+
+    draw();
+
+    if (--animFrames > 0) {
+      requestAnimationFrame(anim);
+    } else {
+      players[currentPlayer].anim = 0;
+      players[currentPlayer].attackOffset = { x: 0, y: 0 };
+      if (currentPlayer === 0) {
+        player1AttackAnim = false;
+        player1AttackAnimFrame = 0;
+      }
+
+      // Deal damage
+      boss.hp -= damage;
+      boss.anim = 1;
+      boss.barShake = 1;
+      playSound(SFX.bossHit, 0.5);
+      showFloatingDamage(positions.boss.x, positions.boss.y - 70, "-" + damage);
+
+      // Track damage dealt by this player
+      playerDamageDealt[currentPlayer] += damage;
+
+      setTimeout(() => {
+        boss.anim = 0;
+        draw();
+
+        if (boss.hp <= 0) {
+          boss.hp = 0;
+          gameState = "gameover";
+          turnIndicator.textContent = "";
+          executeAttacksBtn.disabled = true;
+          bossDeathAnim = true;
+          bossDeathFrame = 0;
+          bossDeathFrameTimer = 0;
+          bossDeathY = 0;
+          bossDeathDone = false;
+          playSound(SFX.bossDeath, 0.7);
+          gameMusic.pause();
+        } else {
+          // Now execute sidekick attack
+          setTimeout(() => {
+            executeSidekickAttack();
+          }, 400);
+        }
+      }, 400);
+    }
+  };
+  anim();
+}
+
+function doMainSpecialAttack() {
+  const player = players[currentPlayer];
+  const positions = getCenteredPositions();
+  let bossPos = positions.boss;
+  let damage = 0;
+  let color = "#fff";
+  let label = "SPECIAL!";
+  let effect = null;
+
+  // Determine special by main character sprite file
+  const mainChar = player.mainCharacter;
+
+  if (mainChar === "Mario_Fire.png") {
+    // Fire Mario: normal rng + burn
+    damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+    color = "#ff5722";
+    label = "BURN!";
+    if (!boss.statusEffects.burn) {
+      boss.statusEffects.burn = { turns: 3 };
+      effect = "Burn applied!";
+    }
+  } else if (mainChar === "Mario_Penguin.png") {
+    // Penguin Mario: normal rng + freeze
+    damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+    color = "#00e5ff";
+    label = "FREEZE!";
+    if (!boss.statusEffects.freeze) {
+      boss.statusEffects.freeze = { turns: 1 };
+      effect = "Boss frozen!";
+    }
+  } else if (
+    mainChar === "Mario_Cape.png" ||
+    mainChar === "Mario_Raccoon.png"
+  ) {
+    // Flying Mario: 7 damage
+    damage = 7 + player.teamBuff;
+    color = "#ffd600";
+    label = "CRIT!";
+  } else if (mainChar === "Mario_Giant.png") {
+    // Giant Mario: double normal, shake
+    damage = (Math.floor(Math.random() * 6) + 1 + player.teamBuff) * 2;
+    color = "#bdbdbd";
+    label = "SMASH!";
+    triggerScreenShake();
+  } else if (mainChar === "Mario_Cat.png") {
+    // Cat Mario: choose one (for now, always Bleed)
+    damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+    color = "#ffb300";
+    label = "BLEED!";
+    if (!boss.statusEffects.bleed) {
+      boss.statusEffects.bleed = { turns: 3 };
+      effect = "Bleed applied!";
+    }
+  } else {
+    // Default: 7 damage
+    damage = 7 + player.teamBuff;
+    color = "#fff";
+    label = "SPECIAL!";
+  }
+
+  // Apply damage
+  if (damage > 0) {
+    boss.hp -= damage;
+    boss.anim = 1;
+    boss.barShake = 1.5;
+    playSound(SFX.bossHit, 0.7);
+    showFloatingDamage(bossPos.x, bossPos.y - 70, "-" + damage, color, label);
+
+    // Track damage dealt by this player's special attack
+    playerDamageDealt[currentPlayer] += damage;
+  }
+
+  // Show effect text if any
+  if (effect) {
+    showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color, label);
+  }
+
+  // Use special charge
+  player.mainSpecialCharges--;
+  updateAttackButtons();
+
+  setTimeout(() => {
+    boss.anim = 0;
+    draw();
+
+    if (boss.hp <= 0) {
+      boss.hp = 0;
+      gameState = "gameover";
+      turnIndicator.textContent = "Players Win!";
+      executeAttacksBtn.disabled = true;
+      bossDeathAnim = true;
+      bossDeathFrame = 0;
+      bossDeathFrameTimer = 0;
+      bossDeathY = 0;
+      bossDeathDone = false;
+      playSound(SFX.bossDeath, 0.7);
+      gameMusic.pause();
+    } else {
+      // Now execute sidekick attack
+      setTimeout(() => {
+        executeSidekickAttack();
+      }, 400);
+    }
+  }, 400);
+}
+
+function executeSidekickAttack() {
+  const player = players[currentPlayer];
+
+  if (player.sidekickAttackType === "special") {
+    doSidekickSpecialAttack();
+  } else {
+    doSidekickRegularAttack();
+  }
+}
+
+function doSidekickRegularAttack() {
+  const player = players[currentPlayer];
+  const positions = getCenteredPositions();
+
+  // Sidekick regular attack (same as before)
+  let damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+  let color = "#4fc3f7";
+  let label = "SIDEKICK!";
+
+  // Apply damage
+  boss.hp -= damage;
+  boss.anim = 1;
+  boss.barShake = 1.5;
+  playSound(SFX.bossHit, 0.7);
+  showFloatingDamage(
+    positions.boss.x,
+    positions.boss.y - 70,
+    "-" + damage,
+    color,
+    label
+  );
+
+  // Track damage dealt by this player's sidekick
+  playerDamageDealt[currentPlayer] += damage;
+
+  setTimeout(() => {
+    boss.anim = 0;
+    draw();
+
+    if (boss.hp <= 0) {
+      boss.hp = 0;
+      gameState = "gameover";
+      turnIndicator.textContent = "";
+      executeAttacksBtn.disabled = true;
+      bossDeathAnim = true;
+      bossDeathFrame = 0;
+      bossDeathFrameTimer = 0;
+      bossDeathY = 0;
+      bossDeathDone = false;
+      playSound(SFX.bossDeath, 0.7);
+      gameMusic.pause();
+    } else {
+      // Mark this player as having completed their turn
+      playersThisRound.push(currentPlayer);
+
+      // Check if all alive players have completed their turns
+      const alivePlayers = players
+        .map((p, i) => (p.alive ? i : null))
+        .filter((i) => i !== null);
+
+      if (playersThisRound.length >= alivePlayers.length) {
+        // All players have completed their turns, boss's turn
+        gameState = "boss";
+        setTimeout(bossAttack, 800);
+      } else {
+        // Next alive player who hasn't completed their turn
+        nextPlayer();
+        updateTurnIndicator();
+        updateAttackButtons();
+      }
+    }
+  }, 400);
+}
+
+function doSidekickSpecialAttack() {
+  const player = players[currentPlayer];
+  const positions = getCenteredPositions();
+
+  // Sidekick special attack (same as before)
+  let damage = 0;
+  let color = "#4fc3f7";
+  let label = "SIDEKICK!";
+  let effect = null;
+
+  // Determine sidekick special attack based on character
+  const sidekickName = player.sidekickCharacter;
+
+  if (sidekickName === "Sidekick_Peach.png") {
+    // Peach: heal all players by double rng
+    damage = 0;
+    color = "#f06292";
+    label = "HEAL!";
+    let heal = (Math.floor(Math.random() * 6) + 1) * 2;
+    players.forEach((pl, idx) => {
+      if (pl.alive) {
+        pl.hp = Math.min(PLAYER_MAX_HP, pl.hp + heal);
+        showFloatingDamage(
+          positions.players[idx].x,
+          positions.players[idx].y - 70,
+          "+" + heal,
+          "#f06292",
+          "HEAL!"
+        );
+      }
+    });
+  } else if (sidekickName === "Sidekick_Toad.png") {
+    // Toad: buff team + boss skips turn
+    damage = 0;
+    color = "#fff";
+    label = "BUFF!";
+    players.forEach((pl) => {
+      pl.teamBuff = (pl.teamBuff || 0) + 1;
+    });
+    if (!boss.statusEffects.distract) {
+      boss.statusEffects.distract = { turns: 1 };
+      effect = "Boss distracted!";
+    }
+  } else if (sidekickName === "Sidekick_Luigi.png") {
+    // Luigi: 2 normal attacks
+    damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+    let damage2 = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+    color = "#66bb6a";
+    label = "DOUBLE!";
+    boss.hp -= damage2;
+    showFloatingDamage(
+      positions.boss.x,
+      positions.boss.y - 110,
+      "-" + damage2,
+      color,
+      label
+    );
+  } else if (sidekickName === "Sidekick_Waluigi.png") {
+    // Waluigi: bomb, 7 damage
+    damage = 7 + player.teamBuff;
+    color = "#ba68c8";
+    label = "BOMB!";
+  } else if (sidekickName === "Sidekick_Wario.png") {
+    // Wario: normal + poison
+    damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+    color = "#8bc34a";
+    label = "POISON!";
+    if (!boss.statusEffects.poison) {
+      boss.statusEffects.poison = { turns: 3 };
+      effect = "Poison applied!";
+    }
+  } else if (sidekickName === "Sidekick_DK.png") {
+    // DK: 8 damage
+    damage = 8 + player.teamBuff;
+    color = "#8d6e63";
+    label = "SMASH!";
+  } else {
+    // Default: 5 damage
+    damage = 5 + player.teamBuff;
+    color = "#4fc3f7";
+    label = "SIDEKICK!";
+  }
+
+  // Apply damage if not Peach/Toad
+  if (damage > 0) {
+    boss.hp -= damage;
+    boss.anim = 1;
+    boss.barShake = 1.5;
+    playSound(SFX.bossHit, 0.7);
+    showFloatingDamage(
+      positions.boss.x,
+      positions.boss.y - 70,
+      "-" + damage,
+      color,
+      label
+    );
+
+    // Track damage dealt by this player's sidekick
+    playerDamageDealt[currentPlayer] += damage;
+  }
+
+  // Show effect text if any
+  if (effect) {
+    showFloatingDamage(
+      positions.boss.x,
+      positions.boss.y - 120,
+      effect,
+      color,
+      label
+    );
+  }
+
+  // Use special charge
+  player.sidekickSpecialCharges--;
+  updateAttackButtons();
+
+  setTimeout(() => {
+    boss.anim = 0;
+    draw();
+
+    if (boss.hp <= 0) {
+      boss.hp = 0;
+      gameState = "gameover";
+      turnIndicator.textContent = "";
+      executeAttacksBtn.disabled = true;
+      bossDeathAnim = true;
+      bossDeathFrame = 0;
+      bossDeathFrameTimer = 0;
+      bossDeathY = 0;
+      bossDeathDone = false;
+      playSound(SFX.bossDeath, 0.7);
+      gameMusic.pause();
+    } else {
+      // Mark this player as having completed their turn
+      playersThisRound.push(currentPlayer);
+
+      // Check if all alive players have completed their turns
+      const alivePlayers = players
+        .map((p, i) => (p.alive ? i : null))
+        .filter((i) => i !== null);
+
+      if (playersThisRound.length >= alivePlayers.length) {
+        // All players have completed their turns, boss's turn
+        gameState = "boss";
+        setTimeout(bossAttack, 800);
+      } else {
+        // Next alive player who hasn't completed their turn
+        nextPlayer();
+        updateTurnIndicator();
+        updateAttackButtons();
+      }
+    }
+  }, 400);
+}
+
+// Add event listeners for new attack selection UI
+if (mainRegularBtn)
+  mainRegularBtn.addEventListener("click", () => selectMainAttack("regular"));
+if (mainSpecialBtn)
+  mainSpecialBtn.addEventListener("click", () => selectMainAttack("special"));
+if (sidekickRegularBtn)
+  sidekickRegularBtn.addEventListener("click", () =>
+    selectSidekickAttack("regular")
+  );
+if (sidekickSpecialBtn)
+  sidekickSpecialBtn.addEventListener("click", () =>
+    selectSidekickAttack("special")
+  );
+if (executeAttacksBtn)
+  executeAttacksBtn.addEventListener("click", executeAttacks);
+
+// Initialize attack buttons for first player
+updateAttackButtons();

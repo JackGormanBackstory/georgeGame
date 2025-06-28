@@ -58,7 +58,7 @@ body::after {
   justify-content: center;
   align-items: center;
   gap: 20px;
-  height: 60px;
+  height: auto;
   background: #3a235a
     url('data:image/svg+xml;utf8,<svg width="8" height="8" xmlns="http://www.w3.org/2000/svg"><rect width="8" height="8" fill="%234b367c"/><rect x="0" y="0" width="4" height="4" fill="%233a235a"/><rect x="4" y="4" width="4" height="4" fill="%233a235a"/></svg>');
   border-top: 4px solid #fff;
@@ -1534,4 +1534,124 @@ button:disabled:hover,
   box-shadow: 0 0 15px rgba(76, 175, 80, 0.6) !important;
   transform: scale(1.05);
   transition: all 0.2s ease;
+}
+
+#attack-selection {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  margin-bottom: 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+#main-attack-buttons,
+#sidekick-attack-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 140px;
+}
+
+#main-attack-buttons h4,
+#sidekick-attack-buttons h4 {
+  margin: 0;
+  color: #fff;
+  font-size: 0.8em;
+  text-align: center;
+  text-shadow: 2px 2px 0 #000;
+}
+
+.attack-btn {
+  background: #4fc3f7;
+  color: #fff;
+  font-size: 0.8em;
+  border: 3px solid;
+  border-color: #fff #222 #222 #fff;
+  box-shadow: 0 2px 0 #fff, 2px 0 0 #fff, 0 4px 0 #222, 4px 0 0 #222,
+    inset 0 2px 6px #bdbdbd;
+  padding: 8px 12px;
+  margin: 2px 0;
+  transition: background 0.08s, color 0.08s, border 0.08s, transform 0.08s,
+    box-shadow 0.08s;
+  font-family: "Press Start 2P", monospace, sans-serif;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attack-btn:hover:not(:disabled) {
+  background: #29b6f6;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 #fff, 3px 0 0 #fff, 0 5px 0 #222, 5px 0 0 #222,
+    inset 0 2px 6px #bdbdbd;
+}
+
+.attack-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 3px 0 #222, 3px 0 0 #222,
+    inset 0 2px 6px #bdbdbd;
+}
+
+.attack-btn:disabled {
+  background: #666;
+  color: #999;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 0 #999, 2px 0 0 #999, 0 4px 0 #333, 4px 0 0 #333,
+    inset 0 2px 6px #555;
+}
+
+.attack-btn.selected {
+  background: #ff9800;
+  color: #fff;
+  box-shadow: 0 2px 0 #fff, 2px 0 0 #fff, 0 4px 0 #e65100, 4px 0 0 #e65100,
+    inset 0 2px 6px #ffb74d;
+}
+
+#execute-attacks-btn {
+  background: #4caf50;
+  color: #fff;
+  font-size: 0.9em;
+  border: 4px solid;
+  border-color: #fff #222 #222 #fff;
+  box-shadow: 0 2px 0 #fff, 2px 0 0 #fff, 0 4px 0 #222, 4px 0 0 #222,
+    inset 0 2px 6px #bdbdbd;
+  padding: 12px 24px;
+  margin: 8px auto;
+  transition: background 0.08s, color 0.08s, border 0.08s, transform 0.08s,
+    box-shadow 0.08s;
+  font-family: "Press Start 2P", monospace, sans-serif;
+  cursor: pointer;
+  display: block;
+  width: fit-content;
+  min-width: 200px;
+  min-height: 100% !important;
+  max-height: none;
+}
+
+#execute-attacks-btn:hover:not(:disabled) {
+  background: #66bb6a;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 0 #fff, 3px 0 0 #fff, 0 5px 0 #222, 5px 0 0 #222,
+    inset 0 2px 6px #bdbdbd;
+}
+
+#execute-attacks-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 3px 0 #222, 3px 0 0 #222,
+    inset 0 2px 6px #bdbdbd;
+}
+
+#execute-attacks-btn:disabled {
+  background: #666;
+  color: #999;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: 0 2px 0 #999, 2px 0 0 #999, 0 4px 0 #333, 4px 0 0 #333,
+    inset 0 2px 6px #555;
 }
