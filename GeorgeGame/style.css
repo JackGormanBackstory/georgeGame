@@ -1525,3 +1525,13 @@ button:disabled:hover,
   z-index: 4;
   pointer-events: none;
 }
+
+/* Drag-over highlighting for character slots */
+.main-char.drag-over,
+.sidekick-char.drag-over {
+  border: 3px solid #4caf50 !important;
+  border-style: solid !important;
+  box-shadow: 0 0 15px rgba(76, 175, 80, 0.6) !important;
+  transform: scale(1.05);
+  transition: all 0.2s ease;
+}
