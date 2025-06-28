@@ -11,7 +11,7 @@ const spriteColors = {
   "Mario_Fire.png": "rgb(255,85,0)",
   "Sidekick_DK.png": "rgb(164,112,70)",
   "Sidekick_Wario.png": "rgb(183,67,173)",
-  "Sidekick_Toad.png": "rgb(255,255,255)",
+  "Sidekick_Toad.png": "rgb(180,180,200)",
 };
 
 let sfxVolume = 0.7;
@@ -440,6 +440,10 @@ function showCharacterSelect() {
   document.getElementById("character-select-screen").style.display = "flex";
   document.getElementById("game-container").style.display = "none";
 
+  // Clear all selected characters when returning to character menu
+  selectedSprites = [];
+  selectedNames = [];
+
   // Clear and set up the grid
   const grid = document.getElementById("sprite-grid");
   grid.innerHTML = "";
@@ -450,7 +454,7 @@ function showCharacterSelect() {
 
   // --- Main Characters Grid ---
   const mainGridWrapper = document.createElement("div");
-  mainGridWrapper.className = "character-grid-wrapper";
+  mainGridWrapper.className = "character-grid-wrapper main-characters";
   const mainHeader = document.createElement("h3");
   mainHeader.textContent = "Main Characters";
   mainHeader.className = "character-grid-header main-header";
@@ -473,9 +477,9 @@ function showCharacterSelect() {
     const img = document.createElement("img");
     img.src = SPRITES_FOLDER + file;
     img.alt = file;
-    img.style.width = "70px";
-    img.style.height = "70px";
+    // Remove fixed dimensions to let CSS handle aspect ratio
     div.appendChild(img);
+    // Remove the 'MAIN' label
     const label = document.createElement("div");
     label.className = "sprite-label";
     label.textContent = file.replace(/\.[^.]+$/, "").replace(/_/g, " ");
@@ -490,7 +494,7 @@ function showCharacterSelect() {
 
   // --- Sidekicks Grid ---
   const sidekickGridWrapper = document.createElement("div");
-  sidekickGridWrapper.className = "character-grid-wrapper";
+  sidekickGridWrapper.className = "character-grid-wrapper sidekick-characters";
   const sidekickHeader = document.createElement("h3");
   sidekickHeader.textContent = "Sidekicks";
   sidekickHeader.className = "character-grid-header sidekick-header";
@@ -513,9 +517,9 @@ function showCharacterSelect() {
     const img = document.createElement("img");
     img.src = SPRITES_FOLDER + file;
     img.alt = file;
-    img.style.width = "60px";
-    img.style.height = "60px";
+    // Remove fixed dimensions to let CSS handle aspect ratio
     div.appendChild(img);
+    // Remove the 'SIDEKICK' label
     const label = document.createElement("div");
     label.className = "sprite-label";
     label.textContent = file.replace(/\.[^.]+$/, "").replace(/_/g, " ");
@@ -535,7 +539,7 @@ function showCharacterSelect() {
 
   updateSelectedCharacters();
 
-  // Pause fight music, play menu music
+  // Pause fight music, play menu music when entering character select
   gameMusic.pause();
   menuMusic.currentTime = 0;
   menuMusic.play().catch((error) => {
@@ -760,56 +764,59 @@ function updateSelectedCharacters() {
     "Mario_Fire.png": "rgb(255,85,0)",
     "Sidekick_DK.png": "rgb(164,112,70)",
     "Sidekick_Wario.png": "rgb(183,67,173)",
-    "Sidekick_Toad.png": "rgb(255,255,255)",
+    "Sidekick_Toad.png": "rgb(180,180,200)",
   };
 
+  // Find the first empty main and sidekick slots
+  let nextMainSlotIndex = -1;
+  let nextSidekickSlotIndex = -1;
   for (let i = 0; i < 4; i++) {
+    const playerData = selectedSprites[i];
+    let hasMain = false;
+    let hasSidekick = false;
+    if (playerData) {
+      hasMain = !!(playerData.main || playerData.type === "main");
+      hasSidekick = !!(playerData.sidekick || playerData.type === "sidekick");
+    }
+    if (!hasMain && nextMainSlotIndex === -1) nextMainSlotIndex = i;
+    if (!hasSidekick && nextSidekickSlotIndex === -1) nextSidekickSlotIndex = i;
+    if (nextMainSlotIndex !== -1 && nextSidekickSlotIndex !== -1) break;
+  }
+
+  for (let i = 0; i < 4; i++) {
+    // Add player number badge above each selected-char
+    const numberBadge = document.createElement("div");
+    numberBadge.className = "player-number-badge";
+    numberBadge.textContent = i + 1;
+    container.appendChild(numberBadge);
+
     const div = document.createElement("div");
     div.className = "selected-char";
+    div.style.position = "relative";
 
     const playerData = selectedSprites[i];
-    console.log(`Slot ${i} playerData:`, playerData);
-
-    // Handle both data structures: {main: {...}, sidekick: {...}} and {idx, file, type}
     let mainChar = null;
     let sidekickChar = null;
 
     if (playerData) {
-      console.log(`Slot ${i} - playerData.main:`, playerData.main);
-      console.log(`Slot ${i} - playerData.sidekick:`, playerData.sidekick);
-
-      // Check for new format with main and sidekick properties
       if (playerData.main) {
         mainChar =
           playerData.main && playerData.main.file ? playerData.main : null;
-        console.log(`Slot ${i} - mainChar after parsing:`, mainChar);
       }
       if (playerData.sidekick) {
         sidekickChar =
           playerData.sidekick && playerData.sidekick.file
             ? playerData.sidekick
             : null;
-        console.log(`Slot ${i} - sidekickChar after parsing:`, sidekickChar);
       }
-
-      // If no characters found in new format, check old format
       if (!mainChar && !sidekickChar) {
         if (playerData.type === "main" && playerData.file) {
-          // Old format with type property
           mainChar = { idx: playerData.idx, file: playerData.file };
         } else if (playerData.type === "sidekick" && playerData.file) {
-          // Old format with type property
           sidekickChar = { idx: playerData.idx, file: playerData.file };
         }
       }
     }
-
-    console.log(
-      `Slot ${i} - mainChar:`,
-      mainChar,
-      "sidekickChar:",
-      sidekickChar
-    );
 
     // Character pair container
     const charPairContainer = document.createElement("div");
@@ -819,17 +826,9 @@ function updateSelectedCharacters() {
     const mainCharDiv = document.createElement("div");
     mainCharDiv.className = "main-char";
     if (mainChar && mainChar.file) {
-      console.log(
-        `Creating main character image for slot ${i}:`,
-        mainChar.file
-      );
       const img = document.createElement("img");
       img.src = SPRITES_FOLDER + mainChar.file;
       img.alt = mainChar.file;
-      img.style.width = "60px";
-      img.style.height = "60px";
-
-      // Add error handling for image loading
       img.onerror = () => {
         console.error(
           "Failed to load main character image:",
@@ -839,17 +838,14 @@ function updateSelectedCharacters() {
       img.onload = () => {
         console.log("Successfully loaded main character image:", mainChar.file);
       };
-
       mainCharDiv.appendChild(img);
       mainCharDiv.style.cursor = "pointer";
       mainCharDiv.onclick = (e) => {
         e.stopPropagation();
-        // Remove only the main character from this pair
         if (playerData) {
           if (playerData.sidekick) {
             selectedSprites[i] = { sidekick: playerData.sidekick };
           } else {
-            // No sidekick, remove entire slot
             selectedSprites.splice(i, 1);
             selectedNames.splice(i, 1);
           }
@@ -859,6 +855,7 @@ function updateSelectedCharacters() {
       };
     } else {
       mainCharDiv.classList.add("empty-slot");
+      if (i === nextMainSlotIndex) mainCharDiv.classList.add("next-slot");
     }
     charPairContainer.appendChild(mainCharDiv);
 
@@ -866,17 +863,9 @@ function updateSelectedCharacters() {
     const sidekickCharDiv = document.createElement("div");
     sidekickCharDiv.className = "sidekick-char";
     if (sidekickChar && sidekickChar.file) {
-      console.log(
-        `Creating sidekick character image for slot ${i}:`,
-        sidekickChar.file
-      );
       const img = document.createElement("img");
       img.src = SPRITES_FOLDER + sidekickChar.file;
       img.alt = sidekickChar.file;
-      img.style.width = "50px";
-      img.style.height = "50px";
-
-      // Add error handling for image loading
       img.onerror = () => {
         console.error(
           "Failed to load sidekick character image:",
@@ -889,17 +878,14 @@ function updateSelectedCharacters() {
           sidekickChar.file
         );
       };
-
       sidekickCharDiv.appendChild(img);
       sidekickCharDiv.style.cursor = "pointer";
       sidekickCharDiv.onclick = (e) => {
         e.stopPropagation();
-        // Remove only the sidekick character from this pair
         if (playerData) {
           if (playerData.main) {
             selectedSprites[i] = { main: playerData.main };
           } else {
-            // No main, remove entire slot
             selectedSprites.splice(i, 1);
             selectedNames.splice(i, 1);
           }
@@ -909,8 +895,16 @@ function updateSelectedCharacters() {
       };
     } else {
       sidekickCharDiv.classList.add("empty-slot");
+      if (i === nextSidekickSlotIndex)
+        sidekickCharDiv.classList.add("next-slot");
     }
     charPairContainer.appendChild(sidekickCharDiv);
+
+    // --- Highlight logic for both slots if both are available ---
+    const hasMain = !!mainChar;
+    const hasSidekick = !!sidekickChar;
+    if (!hasMain) mainCharDiv.classList.add("next-slot");
+    if (!hasSidekick) sidekickCharDiv.classList.add("next-slot");
 
     div.appendChild(charPairContainer);
 
@@ -933,7 +927,6 @@ function updateSelectedCharacters() {
       removeBtn.title = "Remove character pair";
       removeBtn.onclick = (e) => {
         e.stopPropagation();
-        // Remove the slot
         selectedSprites.splice(i, 1);
         selectedNames.splice(i, 1);
         cleanupSelectedArrays();
@@ -966,15 +959,18 @@ function updateSelectedCharacters() {
   // Highlight selected and update grid box styles
   document.querySelectorAll(".sprite-option").forEach((opt) => {
     opt.classList.remove("selected");
+    // Remove any existing player number badge
+    const oldBadge = opt.querySelector(".player-number-badge");
+    if (oldBadge) oldBadge.remove();
     const idx = parseInt(opt.dataset.idx);
     const file = opt.dataset.file;
     const type = opt.dataset.type;
-    // Check if this character is selected
-    const isSelected = selectedSprites.some((s) => {
-      if (s && s.main && s.main.idx === idx) return true;
-      if (s && s.sidekick && s.sidekick.idx === idx) return true;
-      if (s && s.idx === idx) return true;
-      return false;
+    // Check if this character is selected and get its player number
+    let playerNumber = null;
+    selectedSprites.forEach((s, pi) => {
+      if (s && s.main && s.main.idx === idx) playerNumber = pi + 1;
+      else if (s && s.sidekick && s.sidekick.idx === idx) playerNumber = pi + 1;
+      else if (s && s.idx === idx) playerNumber = pi + 1;
     });
     // Always set background color
     if (spriteColors[file]) {
@@ -982,17 +978,36 @@ function updateSelectedCharacters() {
     } else {
       opt.style.background = "#4b367c";
     }
-    if (isSelected) {
+    if (playerNumber) {
       opt.classList.add("selected");
-      opt.style.outline = "4px solid #ffeb3b";
-      opt.style.filter = "brightness(0.92)";
-      opt.style.boxShadow = "0 0 0 4px #ffeb3b55";
-    } else {
-      opt.style.outline = "";
-      opt.style.filter = "";
-      opt.style.boxShadow = "";
+      // Add player number badge
+      const badge = document.createElement("div");
+      badge.className = "player-number-badge";
+      badge.textContent = playerNumber;
+      opt.appendChild(badge);
     }
   });
+
+  // --- Add or remove .mains-full and .sidekicks-full classes on grids ---
+  const mainGrid = document.querySelector(".character-grid.main-grid");
+  const sidekickGrid = document.querySelector(".character-grid.sidekick-grid");
+  // Count selected mains and sidekicks
+  let mainCount = 0,
+    sidekickCount = 0;
+  selectedSprites.forEach((s) => {
+    if (s && s.main && s.main.file) mainCount++;
+    else if (s && s.type === "main" && s.file) mainCount++;
+    if (s && s.sidekick && s.sidekick.file) sidekickCount++;
+    else if (s && s.type === "sidekick" && s.file) sidekickCount++;
+  });
+  if (mainGrid) {
+    if (mainCount >= 4) mainGrid.classList.add("mains-full");
+    else mainGrid.classList.remove("mains-full");
+  }
+  if (sidekickGrid) {
+    if (sidekickCount >= 4) sidekickGrid.classList.add("sidekicks-full");
+    else sidekickGrid.classList.remove("sidekicks-full");
+  }
 
   checkStartFightEnabled();
 }
@@ -1329,9 +1344,11 @@ function draw() {
           if (mainImg.naturalWidth && mainImg.naturalHeight) {
             const aspect = mainImg.naturalWidth / mainImg.naturalHeight;
             if (aspect > 1) {
+              // Wider than tall - fit to width
               drawW = SPRITE_SIZE;
               drawH = SPRITE_SIZE / aspect;
             } else {
+              // Taller than wide - fit to height
               drawH = SPRITE_SIZE;
               drawW = SPRITE_SIZE * aspect;
             }
@@ -1419,9 +1436,11 @@ function draw() {
           if (sidekickImg.naturalWidth && sidekickImg.naturalHeight) {
             const aspect = sidekickImg.naturalWidth / sidekickImg.naturalHeight;
             if (aspect > 1) {
+              // Wider than tall - fit to width
               drawW = SIDEKICK_SIZE;
               drawH = SIDEKICK_SIZE / aspect;
             } else {
+              // Taller than wide - fit to height
               drawH = SIDEKICK_SIZE;
               drawW = SIDEKICK_SIZE * aspect;
             }
@@ -1587,8 +1606,12 @@ function draw() {
         if (mainImg.naturalWidth && mainImg.naturalHeight) {
           const aspect = mainImg.naturalWidth / mainImg.naturalHeight;
           if (aspect > 1) {
+            // Wider than tall - fit to width
+            mainDrawW = 80;
             mainDrawH = 80 / aspect;
           } else {
+            // Taller than wide - fit to height
+            mainDrawH = 80;
             mainDrawW = 80 * aspect;
           }
         }
@@ -1619,8 +1642,12 @@ function draw() {
         if (sidekickImg.naturalWidth && sidekickImg.naturalHeight) {
           const aspect = sidekickImg.naturalWidth / sidekickImg.naturalHeight;
           if (aspect > 1) {
+            // Wider than tall - fit to width
+            sidekickDrawW = 80;
             sidekickDrawH = 80 / aspect;
           } else {
+            // Taller than wide - fit to height
+            sidekickDrawH = 80;
             sidekickDrawW = 80 * aspect;
           }
         }
@@ -3160,11 +3187,13 @@ function drawTitleScreen() {
     if (img.naturalWidth && img.naturalHeight) {
       const aspect = img.naturalWidth / img.naturalHeight;
       if (aspect > 1) {
-        drawH = baseSize;
-        drawW = baseSize * aspect;
-      } else {
+        // Wider than tall - fit to width
         drawW = baseSize;
         drawH = baseSize / aspect;
+      } else {
+        // Taller than wide - fit to height
+        drawH = baseSize;
+        drawW = baseSize * aspect;
       }
     }
     if (img.complete && img.naturalWidth > 0) {
@@ -3190,15 +3219,32 @@ function showTitleScreen() {
 }
 showTitleScreen();
 
-titleScreen.addEventListener("click", () => {
-  titleScreen.classList.add("hide");
-  document.getElementById("character-select-screen").style.display = "";
-  showCharacterSelect();
-  menuMusic.currentTime = 0;
-  menuMusic.play().catch((error) => {
-    console.log("Menu music playback failed:", error.message);
-  });
-});
+// Title screen click logic
+if (titleScreen) {
+  titleScreen.onclick = () => {
+    // Hide the "Click to start" text immediately
+    const clickToStartText = titleScreen.querySelector(
+      ".click-to-start-outline"
+    );
+    if (clickToStartText) {
+      clickToStartText.style.display = "none";
+    }
+
+    // Play pipe.wav, then proceed to character select after sound finishes
+    const audio = new Audio(SFX.pipe);
+    audio.volume = sfxVolume;
+    audio.play();
+    titleScreen.style.pointerEvents = "none";
+    audio.onended = () => {
+      titleScreen.classList.add("hide");
+      showCharacterSelect();
+      menuMusic.currentTime = 0;
+      menuMusic.play().catch((error) => {
+        console.log("Menu music playback failed:", error.message);
+      });
+    };
+  };
+}
 
 // Play wrong.wav when clicking a disabled button
 if (!window._wrongSFXHandlerAttached) {
@@ -3230,23 +3276,6 @@ if (musicMuteBtn) {
     const isMuted = menuMusic.muted && gameMusic.muted;
     musicMuteBtn.textContent = isMuted ? "🔇" : "🔊";
   }, 500);
-}
-
-// Title screen click logic
-if (titleScreen) {
-  titleScreen.onclick = () => {
-    // Play pipe.wav, then proceed to character select after sound finishes
-    const audio = new Audio(SFX.pipe);
-    audio.volume = sfxVolume;
-    audio.play();
-    titleScreen.style.pointerEvents = "none";
-    audio.onended = () => {
-      titleScreen.classList.add("hide");
-      showCharacterSelect();
-      menuMusic.currentTime = 0;
-      menuMusic.play();
-    };
-  };
 }
 
 // --- Special Attack Logic ---
