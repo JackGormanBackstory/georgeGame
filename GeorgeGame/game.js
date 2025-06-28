@@ -36,7 +36,7 @@ const PLAYER_POSITIONS = [
 const BOSS_POSITION = { x: 400, y: 420 };
 
 const PLAYER_MAX_HP = 30;
-const BOSS_MAX_HP = 100;
+const BOSS_MAX_HP = 200;
 
 let players = [
   {
@@ -1120,6 +1120,7 @@ document.getElementById("start-fight").onclick = () => {
   gameState = "player";
   playersThisRound = [];
   updateTurnIndicator();
+  updateAttackButtons(); // Update attack buttons with character special attack names
   document.getElementById("character-select-screen").style.display = "none";
   document.getElementById("game-container").style.display = "";
   draw();
@@ -2173,7 +2174,7 @@ function sidekickAttack() {
         // Next alive player who hasn't completed their turn
         nextPlayer();
         updateTurnIndicator();
-        attackBtn.disabled = false;
+        updateAttackButtons();
       }
     }
   }, 400);
@@ -2809,6 +2810,7 @@ function loadGameState(saveName) {
     bossFrame = saveData.bossFrame;
 
     updateTurnIndicator();
+    updateAttackButtons(); // Update attack buttons with character special attack names
     // Remove old attack button reference - no longer needed with new UI
     // attackBtn.disabled = gameState !== "player";
     draw();
@@ -3928,9 +3930,56 @@ function selectSidekickAttack(type) {
   playSound(SFX.select, 0.5);
 }
 
+// Function to get special attack name for a character
+function getSpecialAttackName(characterSprite, isMainCharacter = true) {
+  if (isMainCharacter) {
+    // Main character special attacks
+    switch (characterSprite) {
+      case "Mario_Fire.png":
+        return "Fireball";
+      case "Mario_Penguin.png":
+        return "Blizzard";
+      case "Mario_Cape.png":
+      case "Mario_Raccoon.png":
+        return "Fly";
+      case "Mario_Giant.png":
+        return "Mega stomp";
+      case "Mario_Cat.png":
+        return "Scratch";
+      default:
+        return "Special Attack";
+    }
+  } else {
+    // Sidekick special attacks
+    switch (characterSprite) {
+      case "Sidekick_Peach.png":
+        return "Healing aura";
+      case "Sidekick_Toad.png":
+        return "SCREAM!";
+      case "Sidekick_Luigi.png":
+        return "Double slap";
+      case "Sidekick_Waluigi.png":
+        return "Bomb throw";
+      case "Sidekick_Wario.png":
+        return "Fart bomb";
+      case "Sidekick_DK.png":
+        return "Double punch";
+      default:
+        return "Sidekick Attack";
+    }
+  }
+}
+
 function updateAttackButtons() {
   const player = players[currentPlayer];
   if (!player || !player.alive) return;
+
+  // Get special attack names for current player's characters
+  const mainSpecialName = getSpecialAttackName(player.mainCharacter, true);
+  const sidekickSpecialName = getSpecialAttackName(
+    player.sidekickCharacter,
+    false
+  );
 
   // Update main character buttons
   mainRegularBtn.classList.toggle(
@@ -3943,9 +3992,9 @@ function updateAttackButtons() {
   );
   mainSpecialBtn.disabled = player.mainSpecialCharges <= 0;
 
-  // Display main special charges in current/max format
+  // Display main special charges with character's special attack name
   if (player.mainSpecialCharges > 0) {
-    mainSpecialBtn.textContent = `Special Attack (${player.mainSpecialCharges}/2)`;
+    mainSpecialBtn.textContent = `${mainSpecialName} (${player.mainSpecialCharges}/2)`;
   } else {
     mainSpecialBtn.textContent = "No attacks left!";
   }
@@ -3961,9 +4010,9 @@ function updateAttackButtons() {
   );
   sidekickSpecialBtn.disabled = player.sidekickSpecialCharges <= 0;
 
-  // Display sidekick special charges in current/max format
+  // Display sidekick special charges with character's special attack name
   if (player.sidekickSpecialCharges > 0) {
-    sidekickSpecialBtn.textContent = `Special Attack (${player.sidekickSpecialCharges}/2)`;
+    sidekickSpecialBtn.textContent = `${sidekickSpecialName} (${player.sidekickSpecialCharges}/2)`;
   } else {
     sidekickSpecialBtn.textContent = "No attacks left!";
   }
