@@ -8,7 +8,7 @@
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css?v=1" />
   </head>
   <body>
     <div id="title-screen">
@@ -16,9 +16,19 @@
       <div id="title-text">Click to start</div>
     </div>
     <div id="character-select-screen">
-      <h2>Select 4 Characters</h2>
+      <h2>Select 4 Character Pairs</h2>
+      <p
+        style="
+          text-align: center;
+          color: #ccc;
+          margin-bottom: 20px;
+          font-size: 0.9em;
+        "
+      >
+        Each player needs a main character and a sidekick
+      </p>
       <div id="sprite-grid"></div>
-      <h3 id="selected-characters-heading">Selected Characters</h3>
+      <h3 id="selected-characters-heading">Selected Character Pairs</h3>
       <div id="selected-characters"></div>
       <button id="start-fight" disabled>Start Fight</button>
       <button id="load-save-select">Load Save</button>
