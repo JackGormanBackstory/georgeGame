@@ -1500,25 +1500,8 @@ body::after {
   align-items: bottom;
 }
 
-#main-attack-buttons,
-#sidekick-attack-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 140px;
-}
-
-#main-attack-buttons h4,
-#sidekick-attack-buttons h4 {
-  margin: 0;
-  color: #fff;
-  font-size: 0.8em;
-  text-align: center;
-  text-shadow: 2px 2px 0 #000;
-}
-
 .attack-btn {
-  width: 286px;
+  width: 100%;
   background: #4fc3f7;
   color: #fff;
   font-size: 0.8em;
@@ -1538,6 +1521,42 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+#main-attack-buttons,
+#sidekick-attack-buttons {
+  gap: 8px;
+  min-width: 140px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 20px;
+  overflow: hidden;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 4px solid #fff;
+  box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.2),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 235, 59, 0.3);
+}
+
+#main-attack-buttons {
+  background: linear-gradient(135deg, #ccc053 0%, #d3b42c 50%, #cf9400 100%);
+}
+
+#sidekick-attack-buttons {
+  background: linear-gradient(135deg, #66abcb 0%, #1f89ba 50%, #006ca7 100%);
+}
+
+#main-attack-buttons h4,
+#sidekick-attack-buttons h4 {
+  margin: 0;
+  color: #fff;
+  font-size: 0.8em;
+  text-align: center;
+  text-shadow: 2px 2px 0 #000;
 }
 
 .attack-btn:hover:not(:disabled) {
