@@ -44,8 +44,27 @@
       <canvas id="game-canvas"></canvas>
       <div id="turn-indicator"></div>
       <div id="ui">
-        <button id="attack-btn">Attack</button>
-        <button id="special-attack-btn" disabled>Special Attack</button>
+        <div id="attack-selection">
+          <div id="main-attack-buttons">
+            <h4>Main Character</h4>
+            <button id="main-regular-btn" class="attack-btn">
+              Regular Attack
+            </button>
+            <button id="main-special-btn" class="attack-btn" disabled>
+              Special Attack (1)
+            </button>
+          </div>
+          <div id="sidekick-attack-buttons">
+            <h4>Sidekick</h4>
+            <button id="sidekick-regular-btn" class="attack-btn">
+              Regular Attack
+            </button>
+            <button id="sidekick-special-btn" class="attack-btn" disabled>
+              Special Attack (1)
+            </button>
+          </div>
+          <button id="execute-attacks-btn" disabled>Execute Attacks!</button>
+        </div>
         <div id="audio-controls">
           <input
             id="music-volume"
