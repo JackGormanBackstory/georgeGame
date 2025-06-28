@@ -149,6 +149,9 @@ let player1AnimTimer = 0;
 let player1AttackAnim = false;
 let player1AttackAnimFrame = 0;
 
+// Damage tracking for each player
+let playerDamageDealt = [0, 0, 0, 0];
+
 let bossAttackAnim = false;
 let bossAttackAnimFrame = 0;
 let bossIdleFrame = 0;
@@ -1016,6 +1019,9 @@ function checkStartFightEnabled() {
 }
 
 document.getElementById("start-fight").onclick = () => {
+  // Reset damage tracking for new fight
+  playerDamageDealt = [0, 0, 0, 0];
+
   // Set up players with selected sprites and names
   for (let i = 0; i < 4; i++) {
     const playerData = selectedSprites[i];
@@ -1532,6 +1538,9 @@ function draw() {
 
   // WIN SCREEN
   if (showWinScreen) {
+    // Hide turn indicator
+    const turnIndicatorElem = document.getElementById("turn-indicator");
+    if (turnIndicatorElem) turnIndicatorElem.style.display = "none";
     // Dim background
     ctx.save();
     ctx.globalAlpha = 0.7;
@@ -1554,68 +1563,103 @@ function draw() {
     ctx.strokeText("YOU WIN!", canvas.width / 2, canvas.height * 0.18);
     ctx.fillText("YOU WIN!", canvas.width / 2, canvas.height * 0.18);
     ctx.restore();
-    // Draw 4 winning characters centered
+
+    // Draw winning characters - show both main and sidekick for each player
     const midY = canvas.height * 0.48;
     const spacing = canvas.width / 8;
     const startX = canvas.width / 2 - 1.5 * spacing;
+
     for (let i = 0; i < 4; i++) {
       const p = players[i];
-      if (p.spriteFile) {
-        let img = p._spriteImg;
-        if (!img) {
-          img = new window.Image();
-          img.src = p.spriteFile;
-          p._spriteImg = img;
+      const playerX = startX + i * spacing;
+
+      // Draw main character sprite
+      if (p.mainSpriteFile) {
+        let mainImg = p._mainSpriteImg;
+        if (!mainImg) {
+          mainImg = new window.Image();
+          mainImg.src = p.mainSpriteFile;
+          p._mainSpriteImg = mainImg;
         }
-        let drawW = 140,
-          drawH = 140;
-        if (img.naturalWidth && img.naturalHeight) {
-          const aspect = img.naturalWidth / img.naturalHeight;
+
+        let mainDrawW = 80,
+          mainDrawH = 80;
+        if (mainImg.naturalWidth && mainImg.naturalHeight) {
+          const aspect = mainImg.naturalWidth / mainImg.naturalHeight;
           if (aspect > 1) {
-            drawH = 140 / aspect;
+            mainDrawH = 80 / aspect;
           } else {
-            drawW = 140 * aspect;
+            mainDrawW = 80 * aspect;
           }
         }
+
         ctx.save();
-        if (!p.alive) {
-          ctx.globalAlpha = 0.35;
-          ctx.filter = "grayscale(1)";
-        }
+        // Always show alive sprites, even if player died
         ctx.drawImage(
-          img,
-          startX + i * spacing - drawW / 2,
-          midY - drawH / 2,
-          drawW,
-          drawH
+          mainImg,
+          playerX - mainDrawW / 2 - 30, // Position main character to the left
+          midY - mainDrawH / 2,
+          mainDrawW,
+          mainDrawH
         );
-        if (!p.alive) {
-          ctx.globalAlpha = 1;
-          ctx.filter = "none";
-          ctx.save();
-          ctx.font = 'bold 32px "Press Start 2P", monospace, sans-serif';
-          ctx.fillStyle = "#ff5252";
-          ctx.strokeStyle = "#000";
-          ctx.lineWidth = 6;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.strokeText("DEAD", startX + i * spacing, midY);
-          ctx.fillText("DEAD", startX + i * spacing, midY);
-          ctx.restore();
-        }
-        ctx.restore();
-        // Draw player name
-        ctx.save();
-        ctx.font = 'bold 20px "Press Start 2P", monospace, sans-serif';
-        ctx.fillStyle = "#fff";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.shadowColor = "#000";
-        ctx.shadowBlur = 6;
-        ctx.fillText(p.name || `P${i + 1}`, startX + i * spacing, midY + 80);
         ctx.restore();
       }
+
+      // Draw sidekick sprite
+      if (p.sidekickSpriteFile) {
+        let sidekickImg = p._sidekickSpriteImg;
+        if (!sidekickImg) {
+          sidekickImg = new window.Image();
+          sidekickImg.src = p.sidekickSpriteFile;
+          p._sidekickSpriteImg = sidekickImg;
+        }
+
+        let sidekickDrawW = 80,
+          sidekickDrawH = 80;
+        if (sidekickImg.naturalWidth && sidekickImg.naturalHeight) {
+          const aspect = sidekickImg.naturalWidth / sidekickImg.naturalHeight;
+          if (aspect > 1) {
+            sidekickDrawH = 80 / aspect;
+          } else {
+            sidekickDrawW = 80 * aspect;
+          }
+        }
+
+        ctx.save();
+        // Always show alive sprites, even if player died
+        ctx.drawImage(
+          sidekickImg,
+          playerX - sidekickDrawW / 2 + 30, // Position sidekick to the right
+          midY - sidekickDrawH / 2,
+          sidekickDrawW,
+          sidekickDrawH
+        );
+        ctx.restore();
+      }
+
+      // Draw player name
+      ctx.save();
+      ctx.font = 'bold 20px "Press Start 2P", monospace, sans-serif';
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 6;
+      ctx.fillText(p.name || `P${i + 1}`, playerX, midY + 80);
+      ctx.restore();
+
+      // Draw damage dealt
+      ctx.save();
+      ctx.font = 'bold 16px "Press Start 2P", monospace, sans-serif';
+      ctx.fillStyle = "#ffeb3b";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 4;
+      ctx.fillText(`${playerDamageDealt[i]} DMG`, playerX, midY + 110);
+      ctx.restore();
     }
+
     // Add Return to Main Menu and Restart buttons as HTML elements styled with 'snes-btn'
     let btnY = canvas.height / 2 + 180;
     let btnW = 320,
@@ -1649,11 +1693,16 @@ function draw() {
         // Reset boss health
         boss.hp = BOSS_MAX_HP;
         boss.displayHp = BOSS_MAX_HP;
+        // Reset damage tracking
+        playerDamageDealt = [0, 0, 0, 0];
         // Show UI again
         const ui = document.getElementById("ui");
         if (ui) ui.style.display = "";
         // Show players again
         if (canvas) canvas.classList.remove("hide-players");
+        // Show turn indicator again
+        const turnIndicatorElem = document.getElementById("turn-indicator");
+        if (turnIndicatorElem) turnIndicatorElem.style.display = "";
         // Remove buttons
         if (mainMenuBtn) mainMenuBtn.remove();
         if (restartBtn) restartBtn.remove();
@@ -1684,6 +1733,8 @@ function draw() {
         // Reset boss health
         boss.hp = BOSS_MAX_HP;
         boss.displayHp = BOSS_MAX_HP;
+        // Reset damage tracking
+        playerDamageDealt = [0, 0, 0, 0];
         // Show UI again
         const ui = document.getElementById("ui");
         if (ui) ui.style.display = "";
@@ -1702,6 +1753,9 @@ function draw() {
     let restartBtn = document.getElementById("win-restart-btn");
     if (mainMenuBtn) mainMenuBtn.remove();
     if (restartBtn) restartBtn.remove();
+    // Show turn indicator again
+    const turnIndicatorElem = document.getElementById("turn-indicator");
+    if (turnIndicatorElem) turnIndicatorElem.style.display = "";
   }
 }
 
@@ -1873,6 +1927,9 @@ function playerAttack() {
       playSound(SFX.bossHit, 0.5);
       showFloatingDamage(positions.boss.x, positions.boss.y - 70, "-" + damage);
 
+      // Track damage dealt by this player
+      playerDamageDealt[currentPlayer] += damage;
+
       // Mark main character as having attacked
       players[currentPlayer].hasAttackedThisTurn = true;
 
@@ -1883,7 +1940,7 @@ function playerAttack() {
         if (boss.hp <= 0) {
           boss.hp = 0;
           gameState = "gameover";
-          turnIndicator.textContent = "Players Win!";
+          turnIndicator.textContent = "";
           attackBtn.disabled = true;
           // Start boss death animation
           bossDeathAnim = true;
@@ -2004,6 +2061,9 @@ function sidekickAttack() {
       color,
       label
     );
+
+    // Track damage dealt by this player's sidekick
+    playerDamageDealt[currentPlayer] += damage;
   }
 
   // Show effect text if any
@@ -2027,7 +2087,7 @@ function sidekickAttack() {
     if (boss.hp <= 0) {
       boss.hp = 0;
       gameState = "gameover";
-      turnIndicator.textContent = "Players Win!";
+      turnIndicator.textContent = "";
       attackBtn.disabled = true;
       specialAttackBtn.disabled = true;
       bossDeathAnim = true;
@@ -2562,6 +2622,8 @@ function restartGame() {
   showWinScreen = false;
   winScreenTimer = 0;
   fireworks = [];
+  // Reset damage tracking
+  playerDamageDealt = [0, 0, 0, 0];
   // Reset turn and state
   currentPlayer = 0;
   gameState = "player";
@@ -2576,14 +2638,25 @@ function restartGame() {
   bossFrame = 0;
   bossAttackAnim = false;
   bossAttackAnimFrame = 0;
-  // Reset floating damages
-  floatingDamages = [];
-  // Restart music
-  gameMusic.currentTime = 0;
-  gameMusic.play().catch((error) => {
-    console.log("Music playback failed:", error.message);
+  bossIdleFrame = 0;
+  bossIdleFrameTimer = 0;
+  // Reset special attack states
+  players.forEach((p) => {
+    p.specialCharge = 0;
+    p.specialReady = false;
+    p.hasAttackedThisTurn = false;
+    p.sidekickHasAttackedThisTurn = false;
   });
-  // Redraw
+  // Show UI again
+  const ui = document.getElementById("ui");
+  if (ui) ui.style.display = "";
+  // Show players again
+  if (canvas) canvas.classList.remove("hide-players");
+  // Show turn indicator again
+  const turnIndicatorElem = document.getElementById("turn-indicator");
+  if (turnIndicatorElem) turnIndicatorElem.style.display = "";
+  // Update special attack button
+  if (window.updateSpecialAttackBtn) window.updateSpecialAttackBtn();
   draw();
 }
 
@@ -3244,6 +3317,9 @@ function doSpecialAttack(idx) {
     boss.barShake = 1.5;
     playSound(SFX.bossHit, 0.7);
     showFloatingDamage(bossPos.x, bossPos.y - 70, "-" + damage, color, label);
+
+    // Track damage dealt by this player's special attack
+    playerDamageDealt[idx] += damage;
   }
 
   // Show effect text if any
