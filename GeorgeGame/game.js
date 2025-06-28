@@ -149,6 +149,9 @@ let player1AnimTimer = 0;
 let player1AttackAnim = false;
 let player1AttackAnimFrame = 0;
 
+// Damage tracking for each player
+let playerDamageDealt = [0, 0, 0, 0];
+
 let bossAttackAnim = false;
 let bossAttackAnimFrame = 0;
 let bossIdleFrame = 0;
@@ -541,46 +544,150 @@ function showCharacterSelect() {
   charMenuBtn.style.display = "";
 }
 
+// Add debounce mechanism to prevent rapid clicking issues
+let lastClickTime = 0;
+const CLICK_DEBOUNCE = 100; // 100ms debounce
+
+function cleanupSelectedArrays() {
+  // Remove any undefined entries and gaps from the arrays
+  for (let i = selectedSprites.length - 1; i >= 0; i--) {
+    if (!selectedSprites[i]) {
+      selectedSprites.splice(i, 1);
+      selectedNames.splice(i, 1);
+    }
+  }
+}
+
 function toggleSelectSprite(idx, file, type) {
-  // Find if this character is already selected
-  const alreadySelected = selectedSprites.findIndex((s) => {
-    if (s.main && s.main.idx === idx) return true;
-    if (s.sidekick && s.sidekick.idx === idx) return true;
-    if (s.idx === idx) return true;
+  // Debounce rapid clicks
+  const now = Date.now();
+  if (now - lastClickTime < CLICK_DEBOUNCE) {
+    return;
+  }
+  lastClickTime = now;
+
+  // Clean up arrays first to ensure no gaps
+  cleanupSelectedArrays();
+
+  // Check if this character is already selected
+  let alreadySelected = -1;
+
+  // Find if this character is already selected as the same type
+  alreadySelected = selectedSprites.findIndex((s) => {
+    if (!s) return false; // Skip undefined entries
+
+    // Check if this specific character is selected as the same type
+    if (type === "main" && s.main && s.main.idx === idx) return true;
+    if (type === "sidekick" && s.sidekick && s.sidekick.idx === idx)
+      return true;
+    if (type === s.type && s.idx === idx) return true; // Old format
+
     return false;
   });
 
   if (alreadySelected !== -1) {
-    // Deselect
+    // Deselect - remove the specific character
     playSound(SFX.clank1, 0.7);
-    selectedSprites.splice(alreadySelected, 1);
-    selectedNames.splice(alreadySelected, 1);
+    const playerData = selectedSprites[alreadySelected];
+
+    console.log(`Removing character - type: ${type}, idx: ${idx}`);
+    console.log(`Before removal - playerData:`, playerData);
+
+    if (playerData && (playerData.main || playerData.sidekick)) {
+      // New format - remove only the specific character type
+      if (type === "main") {
+        if (playerData.sidekick && playerData.sidekick.file) {
+          selectedSprites[alreadySelected] = { sidekick: playerData.sidekick };
+          console.log(`After removing main - keeping sidekick:`, {
+            sidekick: playerData.sidekick,
+          });
+        } else {
+          // No valid sidekick, remove entire slot
+          selectedSprites.splice(alreadySelected, 1);
+          selectedNames.splice(alreadySelected, 1);
+          console.log(
+            `After removing main - no valid sidekick, removed entire slot`
+          );
+        }
+      } else if (type === "sidekick") {
+        if (playerData.main && playerData.main.file) {
+          selectedSprites[alreadySelected] = { main: playerData.main };
+          console.log(`After removing sidekick - keeping main:`, {
+            main: playerData.main,
+          });
+        } else {
+          // No valid main, remove entire slot
+          selectedSprites.splice(alreadySelected, 1);
+          selectedNames.splice(alreadySelected, 1);
+          console.log(
+            `After removing sidekick - no valid main, removed entire slot`
+          );
+        }
+      }
+      cleanupSelectedArrays();
+    } else if (playerData && playerData.idx === idx) {
+      // Old format with type property - remove entire slot
+      selectedSprites.splice(alreadySelected, 1);
+      selectedNames.splice(alreadySelected, 1);
+      console.log(`After removing old format character - removed entire slot`);
+      cleanupSelectedArrays();
+    }
   } else {
     // Find the appropriate player slot
     let playerIndex = -1;
+
+    console.log("Looking for slot for type:", type);
+    console.log("Current selectedSprites:", selectedSprites);
 
     // First, try to find a player that already has a character of the opposite type
     for (let i = 0; i < selectedSprites.length; i++) {
       const playerData = selectedSprites[i];
       if (playerData) {
-        const hasMain = playerData.main || playerData.type === "main";
-        const hasSidekick =
-          playerData.sidekick || playerData.type === "sidekick";
+        const hasMain = !!(playerData.main || playerData.type === "main");
+        const hasSidekick = !!(
+          playerData.sidekick || playerData.type === "sidekick"
+        );
+
+        console.log(
+          `Slot ${i}: hasMain=${hasMain}, hasSidekick=${hasSidekick}`
+        );
 
         if (type === "main" && !hasMain) {
           playerIndex = i;
+          console.log(`Found slot ${i} for main character`);
           break;
         } else if (type === "sidekick" && !hasSidekick) {
           playerIndex = i;
+          console.log(`Found slot ${i} for sidekick character`);
           break;
         }
       }
     }
 
-    // If no existing player slot found, create a new one
-    if (playerIndex === -1 && selectedSprites.length < 4) {
-      playerIndex = selectedSprites.length;
+    // If no existing player slot found, find the first available slot or create a new one
+    if (playerIndex === -1) {
+      // Count actual valid entries to determine if we can add more
+      const validEntries = selectedSprites.filter((s) => s).length;
+
+      if (validEntries < 4) {
+        // Find the first available slot (including gaps)
+        for (let i = 0; i < 4; i++) {
+          if (!selectedSprites[i]) {
+            playerIndex = i;
+            console.log(`Found available slot ${i}`);
+            break;
+          }
+        }
+
+        // If no gaps found, add to the end
+        if (playerIndex === -1) {
+          playerIndex = selectedSprites.length;
+          console.log(`Creating new slot ${playerIndex}`);
+        }
+      }
     }
+
+    console.log("Final playerIndex:", playerIndex);
 
     if (playerIndex !== -1 && playerIndex < 4) {
       const existingPlayer = selectedSprites[playerIndex];
@@ -589,11 +696,31 @@ function toggleSelectSprite(idx, file, type) {
         // First character for this player
         selectedSprites[playerIndex] = { idx, file, type };
         selectedNames[playerIndex] = "";
+      } else if (existingPlayer.main || existingPlayer.sidekick) {
+        // Existing player is in new format - add to the appropriate slot
+        if (type === "main") {
+          selectedSprites[playerIndex] = {
+            main: { idx, file },
+            sidekick: existingPlayer.sidekick || null,
+          };
+        } else if (type === "sidekick") {
+          selectedSprites[playerIndex] = {
+            main: existingPlayer.main || null,
+            sidekick: { idx, file },
+          };
+        }
+        selectedNames[playerIndex] = selectedNames[playerIndex] || "";
       } else if (existingPlayer.type !== type) {
-        // Different type, can add as pair
+        // Different type, can add as pair (old format)
         selectedSprites[playerIndex] = {
-          main: type === "main" ? { idx, file } : existingPlayer,
-          sidekick: type === "sidekick" ? { idx, file } : existingPlayer,
+          main:
+            type === "main"
+              ? { idx, file }
+              : { idx: existingPlayer.idx, file: existingPlayer.file },
+          sidekick:
+            type === "sidekick"
+              ? { idx, file }
+              : { idx: existingPlayer.idx, file: existingPlayer.file },
         };
         selectedNames[playerIndex] = selectedNames[playerIndex] || "";
       } else {
@@ -618,6 +745,8 @@ function updateSelectedCharacters() {
   const container = document.getElementById("selected-characters");
   container.innerHTML = "";
 
+  console.log("updateSelectedCharacters - selectedSprites:", selectedSprites);
+
   // Sprite color mapping
   const spriteColors = {
     "Sidekick_Peach.png": "rgb(247,164,187)",
@@ -639,144 +768,196 @@ function updateSelectedCharacters() {
     div.className = "selected-char";
 
     const playerData = selectedSprites[i];
+    console.log(`Slot ${i} playerData:`, playerData);
+
+    // Handle both data structures: {main: {...}, sidekick: {...}} and {idx, file, type}
+    let mainChar = null;
+    let sidekickChar = null;
 
     if (playerData) {
-      // Determine background color based on main character
-      const mainChar =
-        playerData.main || (playerData.type === "main" ? playerData : null);
-      const sidekick =
-        playerData.sidekick ||
-        (playerData.type === "sidekick" ? playerData : null);
+      console.log(`Slot ${i} - playerData.main:`, playerData.main);
+      console.log(`Slot ${i} - playerData.sidekick:`, playerData.sidekick);
 
-      if (mainChar && spriteColors[mainChar.file]) {
-        div.style.background = spriteColors[mainChar.file];
-      } else if (sidekick && spriteColors[sidekick.file]) {
-        div.style.background = spriteColors[sidekick.file];
-      } else {
-        div.style.background = "#3a235a";
+      // Check for new format with main and sidekick properties
+      if (playerData.main) {
+        mainChar =
+          playerData.main && playerData.main.file ? playerData.main : null;
+        console.log(`Slot ${i} - mainChar after parsing:`, mainChar);
+      }
+      if (playerData.sidekick) {
+        sidekickChar =
+          playerData.sidekick && playerData.sidekick.file
+            ? playerData.sidekick
+            : null;
+        console.log(`Slot ${i} - sidekickChar after parsing:`, sidekickChar);
       }
 
-      // Remove button
+      // If no characters found in new format, check old format
+      if (!mainChar && !sidekickChar) {
+        if (playerData.type === "main" && playerData.file) {
+          // Old format with type property
+          mainChar = { idx: playerData.idx, file: playerData.file };
+        } else if (playerData.type === "sidekick" && playerData.file) {
+          // Old format with type property
+          sidekickChar = { idx: playerData.idx, file: playerData.file };
+        }
+      }
+    }
+
+    console.log(
+      `Slot ${i} - mainChar:`,
+      mainChar,
+      "sidekickChar:",
+      sidekickChar
+    );
+
+    // Character pair container
+    const charPairContainer = document.createElement("div");
+    charPairContainer.className = "char-pair-container";
+
+    // Main character box
+    const mainCharDiv = document.createElement("div");
+    mainCharDiv.className = "main-char";
+    if (mainChar && mainChar.file) {
+      console.log(
+        `Creating main character image for slot ${i}:`,
+        mainChar.file
+      );
+      const img = document.createElement("img");
+      img.src = SPRITES_FOLDER + mainChar.file;
+      img.alt = mainChar.file;
+      img.style.width = "60px";
+      img.style.height = "60px";
+
+      // Add error handling for image loading
+      img.onerror = () => {
+        console.error(
+          "Failed to load main character image:",
+          SPRITES_FOLDER + mainChar.file
+        );
+      };
+      img.onload = () => {
+        console.log("Successfully loaded main character image:", mainChar.file);
+      };
+
+      mainCharDiv.appendChild(img);
+      mainCharDiv.style.cursor = "pointer";
+      mainCharDiv.onclick = (e) => {
+        e.stopPropagation();
+        // Remove only the main character from this pair
+        if (playerData) {
+          if (playerData.sidekick) {
+            selectedSprites[i] = { sidekick: playerData.sidekick };
+          } else {
+            // No sidekick, remove entire slot
+            selectedSprites.splice(i, 1);
+            selectedNames.splice(i, 1);
+          }
+          cleanupSelectedArrays();
+          updateSelectedCharacters();
+        }
+      };
+    } else {
+      mainCharDiv.classList.add("empty-slot");
+    }
+    charPairContainer.appendChild(mainCharDiv);
+
+    // Sidekick character box
+    const sidekickCharDiv = document.createElement("div");
+    sidekickCharDiv.className = "sidekick-char";
+    if (sidekickChar && sidekickChar.file) {
+      console.log(
+        `Creating sidekick character image for slot ${i}:`,
+        sidekickChar.file
+      );
+      const img = document.createElement("img");
+      img.src = SPRITES_FOLDER + sidekickChar.file;
+      img.alt = sidekickChar.file;
+      img.style.width = "50px";
+      img.style.height = "50px";
+
+      // Add error handling for image loading
+      img.onerror = () => {
+        console.error(
+          "Failed to load sidekick character image:",
+          SPRITES_FOLDER + sidekickChar.file
+        );
+      };
+      img.onload = () => {
+        console.log(
+          "Successfully loaded sidekick character image:",
+          sidekickChar.file
+        );
+      };
+
+      sidekickCharDiv.appendChild(img);
+      sidekickCharDiv.style.cursor = "pointer";
+      sidekickCharDiv.onclick = (e) => {
+        e.stopPropagation();
+        // Remove only the sidekick character from this pair
+        if (playerData) {
+          if (playerData.main) {
+            selectedSprites[i] = { main: playerData.main };
+          } else {
+            // No main, remove entire slot
+            selectedSprites.splice(i, 1);
+            selectedNames.splice(i, 1);
+          }
+          cleanupSelectedArrays();
+          updateSelectedCharacters();
+        }
+      };
+    } else {
+      sidekickCharDiv.classList.add("empty-slot");
+    }
+    charPairContainer.appendChild(sidekickCharDiv);
+
+    div.appendChild(charPairContainer);
+
+    // Name input
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Player name...";
+    input.value = selectedNames[i] || "";
+    input.oninput = (e) => {
+      selectedNames[i] = e.target.value;
+      checkStartFightEnabled();
+    };
+    div.appendChild(input);
+
+    // Remove button (removes both main and sidekick)
+    if (playerData && (mainChar || sidekickChar)) {
       const removeBtn = document.createElement("button");
       removeBtn.className = "remove-char-btn";
       removeBtn.innerHTML = "&times;";
       removeBtn.title = "Remove character pair";
       removeBtn.onclick = (e) => {
         e.stopPropagation();
-        playSound(SFX.clank1, 0.7);
+        // Remove the slot
         selectedSprites.splice(i, 1);
         selectedNames.splice(i, 1);
+        cleanupSelectedArrays();
         updateSelectedCharacters();
       };
       div.appendChild(removeBtn);
+    }
 
-      // Character pair container
-      const charPairContainer = document.createElement("div");
-      charPairContainer.className = "char-pair-container";
-      charPairContainer.style.display = "flex";
-      charPairContainer.style.flexDirection = "column";
-      charPairContainer.style.alignItems = "center";
-      charPairContainer.style.gap = "10px";
-
-      // Main character
-      if (mainChar) {
-        const mainCharDiv = document.createElement("div");
-        mainCharDiv.className = "main-char";
-        mainCharDiv.style.position = "relative";
-
-        const img = document.createElement("img");
-        img.src = SPRITES_FOLDER + mainChar.file;
-        img.alt = mainChar.file;
-        img.classList.add("bobbing");
-        img.style.animationDelay = `${(i * 0.5 + Math.random() * 0.5).toFixed(
-          2
-        )}s`;
-
-        // Special size for Mario_Fire and Mario_Giant
-        if (mainChar.file === "Mario_Fire.png") {
-          img.style.width = "80px";
-          img.style.height = "80px";
-        } else if (mainChar.file === "Mario_Giant.png") {
-          img.style.width = "100px";
-          img.style.height = "100px";
-          img.style.marginTop = "-10px";
-        } else {
-          img.style.width = "70px";
-          img.style.height = "70px";
-        }
-
-        mainCharDiv.appendChild(img);
-
-        // Main character label
-        const mainLabel = document.createElement("div");
-        mainLabel.textContent = "Main";
-        mainLabel.style.fontSize = "0.7em";
-        mainLabel.style.color = "#ffeb3b";
-        mainLabel.style.textShadow = "1px 1px 0 #000";
-        mainCharDiv.appendChild(mainLabel);
-
-        charPairContainer.appendChild(mainCharDiv);
-      }
-
-      // Sidekick character
-      if (sidekick) {
-        const sidekickDiv = document.createElement("div");
-        sidekickDiv.className = "sidekick-char";
-        sidekickDiv.style.position = "relative";
-
-        const img = document.createElement("img");
-        img.src = SPRITES_FOLDER + sidekick.file;
-        img.alt = sidekick.file;
-        img.classList.add("bobbing");
-        img.style.animationDelay = `${(
-          i * 0.5 +
-          0.25 +
-          Math.random() * 0.5
-        ).toFixed(2)}s`;
-
-        // Special size for Sidekick_DK
-        if (sidekick.file === "Sidekick_DK.png") {
-          img.style.width = "80px";
-          img.style.height = "80px";
-        } else {
-          img.style.width = "60px";
-          img.style.height = "60px";
-        }
-
-        sidekickDiv.appendChild(img);
-
-        // Sidekick label
-        const sidekickLabel = document.createElement("div");
-        sidekickLabel.textContent = "Sidekick";
-        sidekickLabel.style.fontSize = "0.7em";
-        sidekickLabel.style.color = "#4fc3f7";
-        sidekickLabel.style.textShadow = "1px 1px 0 #000";
-        sidekickDiv.appendChild(sidekickLabel);
-
-        charPairContainer.appendChild(sidekickDiv);
-      }
-
-      div.appendChild(charPairContainer);
-
-      // Name input
-      const input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = "Player name...";
-      input.value = selectedNames[i] || "";
-      input.oninput = (e) => {
-        selectedNames[i] = e.target.value;
-        checkStartFightEnabled();
-      };
-      div.appendChild(input);
+    // Set background color
+    if (mainChar && mainChar.file && spriteColors[mainChar.file]) {
+      div.style.background = spriteColors[mainChar.file];
+    } else if (
+      sidekickChar &&
+      sidekickChar.file &&
+      spriteColors[sidekickChar.file]
+    ) {
+      div.style.background = spriteColors[sidekickChar.file];
     } else {
-      // Empty slot
+      div.style.background = "#3a235a";
+    }
+
+    // Empty slot styling
+    if (!playerData) {
       div.classList.add("empty");
-      div.innerHTML = `
-        <div style="text-align: center; color: #666; font-size: 0.8em;">
-          <div>Player ${i + 1}</div>
-          <div style="margin-top: 10px;">Select Main + Sidekick</div>
-        </div>
-      `;
     }
 
     container.appendChild(div);
@@ -788,30 +969,28 @@ function updateSelectedCharacters() {
     const idx = parseInt(opt.dataset.idx);
     const file = opt.dataset.file;
     const type = opt.dataset.type;
-
     // Check if this character is selected
     const isSelected = selectedSprites.some((s) => {
-      if (s.main && s.main.idx === idx) return true;
-      if (s.sidekick && s.sidekick.idx === idx) return true;
-      if (s.idx === idx) return true;
+      if (s && s.main && s.main.idx === idx) return true;
+      if (s && s.sidekick && s.sidekick.idx === idx) return true;
+      if (s && s.idx === idx) return true;
       return false;
     });
-
     // Always set background color
     if (spriteColors[file]) {
       opt.style.background = spriteColors[file];
     } else {
       opt.style.background = "#4b367c";
     }
-
     if (isSelected) {
       opt.classList.add("selected");
-      opt.style.outline = "4px solid #2ecc40";
-      opt.style.outline = "4px solid #2ecc40";
-      opt.style.filter = "brightness(0.85)";
+      opt.style.outline = "4px solid #ffeb3b";
+      opt.style.filter = "brightness(0.92)";
+      opt.style.boxShadow = "0 0 0 4px #ffeb3b55";
     } else {
       opt.style.outline = "";
       opt.style.filter = "";
+      opt.style.boxShadow = "";
     }
   });
 
@@ -840,6 +1019,9 @@ function checkStartFightEnabled() {
 }
 
 document.getElementById("start-fight").onclick = () => {
+  // Reset damage tracking for new fight
+  playerDamageDealt = [0, 0, 0, 0];
+
   // Set up players with selected sprites and names
   for (let i = 0; i < 4; i++) {
     const playerData = selectedSprites[i];
@@ -883,15 +1065,6 @@ document.getElementById("start-fight").onclick = () => {
     players[i].teamBuff = 0;
     players[i].hasAttackedThisTurn = false; // Track if main character has attacked
     players[i].sidekickHasAttackedThisTurn = false; // Track if sidekick has attacked
-
-    // Debug logging
-    console.log(`Player ${i + 1} setup:`, {
-      mainSpriteFile: players[i].mainSpriteFile,
-      sidekickSpriteFile: players[i].sidekickSpriteFile,
-      mainCharacter: players[i].mainCharacter,
-      sidekickCharacter: players[i].sidekickCharacter,
-      name: players[i].name,
-    });
   }
 
   boss.hp = BOSS_MAX_HP;
@@ -1120,14 +1293,6 @@ function draw() {
       const SPRITE_SIZE = 80; // Smaller size to fit both characters
       const SIDEKICK_SIZE = 60; // Even smaller for sidekick
       const PAIR_SPACING = 120; // Increased spacing between main and sidekick
-
-      // Debug logging for sprite drawing
-      console.log(`Drawing player ${i}:`, {
-        mainSpriteFile: p.mainSpriteFile,
-        sidekickSpriteFile: p.sidekickSpriteFile,
-        hasMainSprite: !!p.mainSpriteFile,
-        hasSidekickSprite: !!p.sidekickSpriteFile,
-      });
 
       // Draw main character
       if (p.mainSpriteFile) {
@@ -1373,6 +1538,9 @@ function draw() {
 
   // WIN SCREEN
   if (showWinScreen) {
+    // Hide turn indicator
+    const turnIndicatorElem = document.getElementById("turn-indicator");
+    if (turnIndicatorElem) turnIndicatorElem.style.display = "none";
     // Dim background
     ctx.save();
     ctx.globalAlpha = 0.7;
@@ -1395,68 +1563,103 @@ function draw() {
     ctx.strokeText("YOU WIN!", canvas.width / 2, canvas.height * 0.18);
     ctx.fillText("YOU WIN!", canvas.width / 2, canvas.height * 0.18);
     ctx.restore();
-    // Draw 4 winning characters centered
+
+    // Draw winning characters - show both main and sidekick for each player
     const midY = canvas.height * 0.48;
     const spacing = canvas.width / 8;
     const startX = canvas.width / 2 - 1.5 * spacing;
+
     for (let i = 0; i < 4; i++) {
       const p = players[i];
-      if (p.spriteFile) {
-        let img = p._spriteImg;
-        if (!img) {
-          img = new window.Image();
-          img.src = p.spriteFile;
-          p._spriteImg = img;
+      const playerX = startX + i * spacing;
+
+      // Draw main character sprite
+      if (p.mainSpriteFile) {
+        let mainImg = p._mainSpriteImg;
+        if (!mainImg) {
+          mainImg = new window.Image();
+          mainImg.src = p.mainSpriteFile;
+          p._mainSpriteImg = mainImg;
         }
-        let drawW = 140,
-          drawH = 140;
-        if (img.naturalWidth && img.naturalHeight) {
-          const aspect = img.naturalWidth / img.naturalHeight;
+
+        let mainDrawW = 80,
+          mainDrawH = 80;
+        if (mainImg.naturalWidth && mainImg.naturalHeight) {
+          const aspect = mainImg.naturalWidth / mainImg.naturalHeight;
           if (aspect > 1) {
-            drawH = 140 / aspect;
+            mainDrawH = 80 / aspect;
           } else {
-            drawW = 140 * aspect;
+            mainDrawW = 80 * aspect;
           }
         }
+
         ctx.save();
-        if (!p.alive) {
-          ctx.globalAlpha = 0.35;
-          ctx.filter = "grayscale(1)";
-        }
+        // Always show alive sprites, even if player died
         ctx.drawImage(
-          img,
-          startX + i * spacing - drawW / 2,
-          midY - drawH / 2,
-          drawW,
-          drawH
+          mainImg,
+          playerX - mainDrawW / 2 - 30, // Position main character to the left
+          midY - mainDrawH / 2,
+          mainDrawW,
+          mainDrawH
         );
-        if (!p.alive) {
-          ctx.globalAlpha = 1;
-          ctx.filter = "none";
-          ctx.save();
-          ctx.font = 'bold 32px "Press Start 2P", monospace, sans-serif';
-          ctx.fillStyle = "#ff5252";
-          ctx.strokeStyle = "#000";
-          ctx.lineWidth = 6;
-          ctx.textAlign = "center";
-          ctx.textBaseline = "middle";
-          ctx.strokeText("DEAD", startX + i * spacing, midY);
-          ctx.fillText("DEAD", startX + i * spacing, midY);
-          ctx.restore();
-        }
-        ctx.restore();
-        // Draw player name
-        ctx.save();
-        ctx.font = 'bold 20px "Press Start 2P", monospace, sans-serif';
-        ctx.fillStyle = "#fff";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "top";
-        ctx.shadowColor = "#000";
-        ctx.shadowBlur = 6;
-        ctx.fillText(p.name || `P${i + 1}`, startX + i * spacing, midY + 80);
         ctx.restore();
       }
+
+      // Draw sidekick sprite
+      if (p.sidekickSpriteFile) {
+        let sidekickImg = p._sidekickSpriteImg;
+        if (!sidekickImg) {
+          sidekickImg = new window.Image();
+          sidekickImg.src = p.sidekickSpriteFile;
+          p._sidekickSpriteImg = sidekickImg;
+        }
+
+        let sidekickDrawW = 80,
+          sidekickDrawH = 80;
+        if (sidekickImg.naturalWidth && sidekickImg.naturalHeight) {
+          const aspect = sidekickImg.naturalWidth / sidekickImg.naturalHeight;
+          if (aspect > 1) {
+            sidekickDrawH = 80 / aspect;
+          } else {
+            sidekickDrawW = 80 * aspect;
+          }
+        }
+
+        ctx.save();
+        // Always show alive sprites, even if player died
+        ctx.drawImage(
+          sidekickImg,
+          playerX - sidekickDrawW / 2 + 30, // Position sidekick to the right
+          midY - sidekickDrawH / 2,
+          sidekickDrawW,
+          sidekickDrawH
+        );
+        ctx.restore();
+      }
+
+      // Draw player name
+      ctx.save();
+      ctx.font = 'bold 20px "Press Start 2P", monospace, sans-serif';
+      ctx.fillStyle = "#fff";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 6;
+      ctx.fillText(p.name || `P${i + 1}`, playerX, midY + 80);
+      ctx.restore();
+
+      // Draw damage dealt
+      ctx.save();
+      ctx.font = 'bold 16px "Press Start 2P", monospace, sans-serif';
+      ctx.fillStyle = "#ffeb3b";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 4;
+      ctx.fillText(`${playerDamageDealt[i]} DMG`, playerX, midY + 110);
+      ctx.restore();
     }
+
     // Add Return to Main Menu and Restart buttons as HTML elements styled with 'snes-btn'
     let btnY = canvas.height / 2 + 180;
     let btnW = 320,
@@ -1490,11 +1693,16 @@ function draw() {
         // Reset boss health
         boss.hp = BOSS_MAX_HP;
         boss.displayHp = BOSS_MAX_HP;
+        // Reset damage tracking
+        playerDamageDealt = [0, 0, 0, 0];
         // Show UI again
         const ui = document.getElementById("ui");
         if (ui) ui.style.display = "";
         // Show players again
         if (canvas) canvas.classList.remove("hide-players");
+        // Show turn indicator again
+        const turnIndicatorElem = document.getElementById("turn-indicator");
+        if (turnIndicatorElem) turnIndicatorElem.style.display = "";
         // Remove buttons
         if (mainMenuBtn) mainMenuBtn.remove();
         if (restartBtn) restartBtn.remove();
@@ -1525,6 +1733,8 @@ function draw() {
         // Reset boss health
         boss.hp = BOSS_MAX_HP;
         boss.displayHp = BOSS_MAX_HP;
+        // Reset damage tracking
+        playerDamageDealt = [0, 0, 0, 0];
         // Show UI again
         const ui = document.getElementById("ui");
         if (ui) ui.style.display = "";
@@ -1543,6 +1753,9 @@ function draw() {
     let restartBtn = document.getElementById("win-restart-btn");
     if (mainMenuBtn) mainMenuBtn.remove();
     if (restartBtn) restartBtn.remove();
+    // Show turn indicator again
+    const turnIndicatorElem = document.getElementById("turn-indicator");
+    if (turnIndicatorElem) turnIndicatorElem.style.display = "";
   }
 }
 
@@ -1714,6 +1927,9 @@ function playerAttack() {
       playSound(SFX.bossHit, 0.5);
       showFloatingDamage(positions.boss.x, positions.boss.y - 70, "-" + damage);
 
+      // Track damage dealt by this player
+      playerDamageDealt[currentPlayer] += damage;
+
       // Mark main character as having attacked
       players[currentPlayer].hasAttackedThisTurn = true;
 
@@ -1724,7 +1940,7 @@ function playerAttack() {
         if (boss.hp <= 0) {
           boss.hp = 0;
           gameState = "gameover";
-          turnIndicator.textContent = "Players Win!";
+          turnIndicator.textContent = "";
           attackBtn.disabled = true;
           // Start boss death animation
           bossDeathAnim = true;
@@ -1845,6 +2061,9 @@ function sidekickAttack() {
       color,
       label
     );
+
+    // Track damage dealt by this player's sidekick
+    playerDamageDealt[currentPlayer] += damage;
   }
 
   // Show effect text if any
@@ -1868,7 +2087,7 @@ function sidekickAttack() {
     if (boss.hp <= 0) {
       boss.hp = 0;
       gameState = "gameover";
-      turnIndicator.textContent = "Players Win!";
+      turnIndicator.textContent = "";
       attackBtn.disabled = true;
       specialAttackBtn.disabled = true;
       bossDeathAnim = true;
@@ -2403,6 +2622,8 @@ function restartGame() {
   showWinScreen = false;
   winScreenTimer = 0;
   fireworks = [];
+  // Reset damage tracking
+  playerDamageDealt = [0, 0, 0, 0];
   // Reset turn and state
   currentPlayer = 0;
   gameState = "player";
@@ -2417,14 +2638,25 @@ function restartGame() {
   bossFrame = 0;
   bossAttackAnim = false;
   bossAttackAnimFrame = 0;
-  // Reset floating damages
-  floatingDamages = [];
-  // Restart music
-  gameMusic.currentTime = 0;
-  gameMusic.play().catch((error) => {
-    console.log("Music playback failed:", error.message);
+  bossIdleFrame = 0;
+  bossIdleFrameTimer = 0;
+  // Reset special attack states
+  players.forEach((p) => {
+    p.specialCharge = 0;
+    p.specialReady = false;
+    p.hasAttackedThisTurn = false;
+    p.sidekickHasAttackedThisTurn = false;
   });
-  // Redraw
+  // Show UI again
+  const ui = document.getElementById("ui");
+  if (ui) ui.style.display = "";
+  // Show players again
+  if (canvas) canvas.classList.remove("hide-players");
+  // Show turn indicator again
+  const turnIndicatorElem = document.getElementById("turn-indicator");
+  if (turnIndicatorElem) turnIndicatorElem.style.display = "";
+  // Update special attack button
+  if (window.updateSpecialAttackBtn) window.updateSpecialAttackBtn();
   draw();
 }
 
@@ -2847,7 +3079,10 @@ let titleSprites = [];
 
 // Update title text to include game title and click-to-start
 if (titleText) {
-  titleText.innerHTML = `<span class="game-title rainbow-text">${GAME_TITLE}</span><br><span class="rainbow-text">Click to start</span>`;
+  titleText.innerHTML = `
+    <object id="super-smash-svg" type="image/svg+xml" data="SuperSmashShowdown.svg" class="rainbow-svg-title" style="display:block;margin:0 auto;width:90%;max-width:600px;height:auto;"></object>
+    <br><span class="click-to-start-outline">Click to start</span>
+  `;
 }
 
 function resizeTitleCanvas() {
@@ -3082,6 +3317,9 @@ function doSpecialAttack(idx) {
     boss.barShake = 1.5;
     playSound(SFX.bossHit, 0.7);
     showFloatingDamage(bossPos.x, bossPos.y - 70, "-" + damage, color, label);
+
+    // Track damage dealt by this player's special attack
+    playerDamageDealt[idx] += damage;
   }
 
   // Show effect text if any
