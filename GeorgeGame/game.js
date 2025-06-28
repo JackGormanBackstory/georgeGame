@@ -814,13 +814,21 @@ function updateSelectedCharacters() {
           if (playerData.sidekick) {
             selectedSprites[i] = { sidekick: playerData.sidekick };
           } else {
-            selectedSprites.splice(i, 1);
-            selectedNames.splice(i, 1);
+            selectedSprites[i] = null;
+            selectedNames[i] = "";
           }
           cleanupSelectedArrays();
           updateSelectedCharacters();
         }
       };
+      makeCharBoxDraggable(
+        mainCharDiv,
+        mainChar.idx,
+        mainChar.file,
+        "main",
+        i,
+        "main"
+      );
     } else {
       mainCharDiv.classList.add("empty-slot");
       if (i === nextMainSlotIndex) mainCharDiv.classList.add("next-slot");
@@ -854,13 +862,21 @@ function updateSelectedCharacters() {
           if (playerData.main) {
             selectedSprites[i] = { main: playerData.main };
           } else {
-            selectedSprites.splice(i, 1);
-            selectedNames.splice(i, 1);
+            selectedSprites[i] = null;
+            selectedNames[i] = "";
           }
           cleanupSelectedArrays();
           updateSelectedCharacters();
         }
       };
+      makeCharBoxDraggable(
+        sidekickCharDiv,
+        sidekickChar.idx,
+        sidekickChar.file,
+        "sidekick",
+        i,
+        "sidekick"
+      );
     } else {
       sidekickCharDiv.classList.add("empty-slot");
       if (i === nextSidekickSlotIndex)
@@ -875,6 +891,9 @@ function updateSelectedCharacters() {
     if (!hasSidekick) sidekickCharDiv.classList.add("next-slot");
 
     div.appendChild(charPairContainer);
+
+    // Make the entire selected character container droppable
+    makeSelectedCharContainerDroppable(div, i);
 
     // Name input
     const input = document.createElement("input");
@@ -939,10 +958,18 @@ function updateSelectedCharacters() {
     const type = opt.dataset.type;
     // Check if this character is selected and get its player number
     let playerNumber = null;
+    let isSelected = false;
     selectedSprites.forEach((s, pi) => {
-      if (s && s.main && s.main.idx === idx) playerNumber = pi + 1;
-      else if (s && s.sidekick && s.sidekick.idx === idx) playerNumber = pi + 1;
-      else if (s && s.idx === idx) playerNumber = pi + 1;
+      if (s && s.main && s.main.idx === idx) {
+        playerNumber = pi + 1;
+        isSelected = true;
+      } else if (s && s.sidekick && s.sidekick.idx === idx) {
+        playerNumber = pi + 1;
+        isSelected = true;
+      } else if (s && s.idx === idx) {
+        playerNumber = pi + 1;
+        isSelected = true;
+      }
     });
     // Always set background color
     if (spriteColors[file]) {
@@ -958,6 +985,8 @@ function updateSelectedCharacters() {
       badge.textContent = playerNumber;
       opt.appendChild(badge);
     }
+    // Make grid sprite draggable if not selected
+    makeSpriteOptionDraggable(opt, idx, file, type, isSelected);
   });
 
   // --- Add or remove .mains-full and .sidekicks-full classes on grids ---
@@ -3405,3 +3434,568 @@ specialAttackBtn.addEventListener("click", () => {
   doSpecialAttack(currentPlayer);
 });
 updateSpecialAttackBtn();
+
+// --- Drag-and-drop helpers ---
+// Helper to get drag image path from sprite filename
+function getDragImagePath(file) {
+  // file is e.g. 'Mario_Cape.png' -> 'spriteDrag/Mario_Cape_drag.png'
+  const base = file.replace(/\.png$/, "");
+  return `spriteDrag/${base}_drag.png`;
+}
+
+// Preload all drag images
+const dragImageCache = new Map();
+function preloadDragImages() {
+  const allSprites = [
+    "Mario_Cape.png",
+    "Mario_Cat.png",
+    "Mario_Fire.png",
+    "Mario_Giant.png",
+    "Mario_Penguin.png",
+    "Mario_Raccoon.png",
+    "Sidekick_DK.png",
+    "Sidekick_Luigi.png",
+    "Sidekick_Peach.png",
+    "Sidekick_Toad.png",
+    "Sidekick_Waluigi.png",
+    "Sidekick_Wario.png",
+  ];
+
+  allSprites.forEach((file) => {
+    const dragImg = new Image();
+    dragImg.src = getDragImagePath(file);
+    dragImg.onload = () => {
+      dragImageCache.set(file, dragImg);
+    };
+    dragImg.onerror = () => {
+      console.warn(`Failed to load drag image for ${file}`);
+    };
+  });
+}
+
+// Call preload when the page loads
+preloadDragImages();
+
+function createDragImage(file, fallbackImg) {
+  const dragImg = dragImageCache.get(file);
+  if (dragImg && dragImg.complete && dragImg.naturalWidth > 0) {
+    return dragImg;
+  }
+  return fallbackImg;
+}
+
+function makeSpriteOptionDraggable(opt, idx, file, type, isSelected) {
+  if (isSelected) {
+    opt.removeAttribute("draggable");
+    opt.ondragstart = null;
+    opt.ondragend = null;
+    // Remove drag prevention from image
+    const img = opt.querySelector("img");
+    if (img) {
+      img.ondragstart = null;
+      img.draggable = false;
+    }
+  } else {
+    opt.setAttribute("draggable", "true");
+    // Prevent default drag on the image element
+    const img = opt.querySelector("img");
+    if (img) {
+      img.draggable = false;
+      img.ondragstart = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      };
+    }
+    opt.ondragstart = (e) => {
+      const dragData = { idx, file, type, source: "grid" };
+      // Set global drag data for highlighting
+      currentDragData = dragData;
+      e.dataTransfer.setData("application/json", JSON.stringify(dragData));
+      // Use the drag image from spriteDrag folder
+      const dragImg = new window.Image();
+      dragImg.src = getDragImagePath(file);
+      dragImg.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 72;
+        canvas.height = 72;
+        const ctx = canvas.getContext("2d");
+        // Draw drag image centered and scaled
+        let drawW = 72,
+          drawH = 72;
+        const aspect = dragImg.naturalWidth / dragImg.naturalHeight;
+        if (aspect > 1) {
+          drawW = 72;
+          drawH = 72 / aspect;
+        } else {
+          drawH = 72;
+          drawW = 72 * aspect;
+        }
+        ctx.clearRect(0, 0, 72, 72);
+        ctx.drawImage(
+          dragImg,
+          (72 - drawW) / 2,
+          (72 - drawH) / 2,
+          drawW,
+          drawH
+        );
+        e.dataTransfer.setDragImage(canvas, 36, 36);
+      };
+      dragImg.onerror = () => {
+        // Fallback to current logic
+        const img = opt.querySelector("img");
+        if (
+          img &&
+          img.complete &&
+          img.naturalWidth > 0 &&
+          img.naturalHeight > 0
+        ) {
+          const canvas = document.createElement("canvas");
+          canvas.width = 72;
+          canvas.height = 72;
+          const ctx = canvas.getContext("2d");
+          let drawW = 72,
+            drawH = 72;
+          const aspect = img.naturalWidth / img.naturalHeight;
+          if (aspect > 1) {
+            drawW = 72;
+            drawH = 72 / aspect;
+          } else {
+            drawH = 72;
+            drawW = 72 * aspect;
+          }
+          ctx.drawImage(img, (72 - drawW) / 2, (72 - drawH) / 2, drawW, drawH);
+          e.dataTransfer.setDragImage(canvas, 36, 36);
+        }
+      };
+    };
+    opt.ondragend = (e) => {
+      // Clear global drag data if drag ends without dropping
+      currentDragData = null;
+    };
+  }
+}
+
+function makeCharBoxDroppable(box, playerIndex, charType) {
+  box.ondragover = (e) => {
+    e.preventDefault();
+    box.classList.add("drag-over");
+  };
+  box.ondragleave = (e) => {
+    box.classList.remove("drag-over");
+  };
+  box.ondrop = (e) => {
+    e.preventDefault();
+    box.classList.remove("drag-over");
+    let data;
+    try {
+      data = JSON.parse(e.dataTransfer.getData("application/json"));
+    } catch (err) {
+      console.error("Failed to parse drag data:", err);
+      return;
+    }
+    console.log(
+      "Dropping on player",
+      playerIndex,
+      "charType",
+      charType,
+      "data:",
+      data
+    );
+    if (!data || !data.file || !data.type) return;
+    // Only allow main->main and sidekick->sidekick
+    if (data.type !== charType) return;
+    // If dropping from grid
+    if (data.source === "grid") {
+      console.log("Dropping from grid to player", playerIndex);
+      // Find if this sprite is already selected elsewhere and remove it
+      let removedFromPlayer = null;
+      selectedSprites.forEach((s, idx) => {
+        if (!s) return;
+        if (charType === "main" && s.main && s.main.idx === data.idx) {
+          console.log("Removing main from player", idx);
+          selectedSprites[idx].main = null;
+          removedFromPlayer = idx;
+        }
+        if (
+          charType === "sidekick" &&
+          s.sidekick &&
+          s.sidekick.idx === data.idx
+        ) {
+          console.log("Removing sidekick from player", idx);
+          selectedSprites[idx].sidekick = null;
+          removedFromPlayer = idx;
+        }
+      });
+
+      // If we removed from a player and that player now has no characters, clear the slot
+      if (removedFromPlayer !== null) {
+        const s = selectedSprites[removedFromPlayer];
+        if (
+          (!s.main && !s.sidekick) ||
+          (s.main === null && s.sidekick === null)
+        ) {
+          console.log("Clearing empty player slot", removedFromPlayer);
+          selectedSprites[removedFromPlayer] = null;
+          selectedNames[removedFromPlayer] = "";
+        }
+      }
+
+      // Override target slot
+      if (!selectedSprites[playerIndex]) selectedSprites[playerIndex] = {};
+      selectedSprites[playerIndex][charType] = {
+        idx: data.idx,
+        file: data.file,
+      };
+      console.log("Updated selectedSprites:", selectedSprites);
+      updateSelectedCharacters();
+    } else if (data.source === "player") {
+      console.log(
+        "Dropping from player",
+        data.playerIndex,
+        "to player",
+        playerIndex,
+        "charType",
+        charType
+      );
+      // Move from another player box
+      if (data.playerIndex === playerIndex && data.charType === charType) {
+        console.log("Same slot, ignoring");
+        return; // same slot
+      }
+      // Remove from old slot
+      if (selectedSprites[data.playerIndex]) {
+        console.log(
+          "Checking player",
+          data.playerIndex,
+          "for",
+          data.charType,
+          ":",
+          selectedSprites[data.playerIndex]
+        );
+
+        // Check new format first (main/sidekick properties)
+        if (selectedSprites[data.playerIndex][data.charType]) {
+          console.log("Removing from old player slot", data.playerIndex);
+          selectedSprites[data.playerIndex][data.charType] = null;
+          // If both main and sidekick are now null, clear the slot
+          const s = selectedSprites[data.playerIndex];
+          if (
+            (!s.main && !s.sidekick) ||
+            (s.main === null && s.sidekick === null)
+          ) {
+            console.log("Clearing empty player slot", data.playerIndex);
+            selectedSprites[data.playerIndex] = null;
+            selectedNames[data.playerIndex] = "";
+          }
+        }
+        // Check old format (type property)
+        else if (selectedSprites[data.playerIndex].type === data.charType) {
+          console.log(
+            "Removing from old player slot (old format)",
+            data.playerIndex
+          );
+          selectedSprites[data.playerIndex] = null;
+          selectedNames[data.playerIndex] = "";
+        } else {
+          console.log(
+            "No",
+            data.charType,
+            "found in player",
+            data.playerIndex,
+            "structure:",
+            selectedSprites[data.playerIndex]
+          );
+        }
+      }
+      // Override target slot
+      if (!selectedSprites[playerIndex]) selectedSprites[playerIndex] = {};
+      selectedSprites[playerIndex][charType] = {
+        idx: data.idx,
+        file: data.file,
+      };
+      console.log("Updated selectedSprites:", selectedSprites);
+      updateSelectedCharacters();
+    }
+  };
+}
+
+// Global variable to store current drag data
+let currentDragData = null;
+
+// New function to make the entire selected character container droppable
+function makeSelectedCharContainerDroppable(container, playerIndex) {
+  container.ondragover = (e) => {
+    e.preventDefault();
+
+    // Use the global drag data instead of trying to parse it
+    if (!currentDragData || !currentDragData.file || !currentDragData.type)
+      return;
+
+    // Highlight the appropriate slot based on the dragged character type
+    const mainCharDiv = container.querySelector(".main-char");
+    const sidekickCharDiv = container.querySelector(".sidekick-char");
+
+    // Remove any existing highlights
+    mainCharDiv?.classList.remove("drag-over");
+    sidekickCharDiv?.classList.remove("drag-over");
+
+    // Highlight the appropriate slot
+    if (currentDragData.type === "main" && mainCharDiv) {
+      mainCharDiv.classList.add("drag-over");
+    } else if (currentDragData.type === "sidekick" && sidekickCharDiv) {
+      sidekickCharDiv.classList.add("drag-over");
+    }
+  };
+
+  container.ondragleave = (e) => {
+    // Only remove highlight if we're leaving the container entirely
+    if (!container.contains(e.relatedTarget)) {
+      const mainCharDiv = container.querySelector(".main-char");
+      const sidekickCharDiv = container.querySelector(".sidekick-char");
+      mainCharDiv?.classList.remove("drag-over");
+      sidekickCharDiv?.classList.remove("drag-over");
+    }
+  };
+
+  container.ondrop = (e) => {
+    e.preventDefault();
+    let data;
+    try {
+      data = JSON.parse(e.dataTransfer.getData("application/json"));
+    } catch (err) {
+      console.error("Failed to parse drag data:", err);
+      return;
+    }
+
+    // Clear the global drag data
+    currentDragData = null;
+
+    // Remove highlights
+    const mainCharDiv = container.querySelector(".main-char");
+    const sidekickCharDiv = container.querySelector(".sidekick-char");
+    mainCharDiv?.classList.remove("drag-over");
+    sidekickCharDiv?.classList.remove("drag-over");
+
+    if (!data || !data.file || !data.type) return;
+
+    // Determine which slot to drop into based on character type
+    const charType = data.type;
+
+    // Check if the target slot is empty before dropping
+    const targetSlot = charType === "main" ? mainCharDiv : sidekickCharDiv;
+    const isTargetSlotEmpty =
+      targetSlot && targetSlot.classList.contains("empty-slot");
+
+    // If dropping from grid
+    if (data.source === "grid") {
+      console.log(
+        "Dropping from grid to player",
+        playerIndex,
+        "charType",
+        charType
+      );
+      // Find if this sprite is already selected elsewhere and remove it
+      let removedFromPlayer = null;
+      selectedSprites.forEach((s, idx) => {
+        if (!s) return;
+        if (charType === "main" && s.main && s.main.idx === data.idx) {
+          console.log("Removing main from player", idx);
+          selectedSprites[idx].main = null;
+          removedFromPlayer = idx;
+        }
+        if (
+          charType === "sidekick" &&
+          s.sidekick &&
+          s.sidekick.idx === data.idx
+        ) {
+          console.log("Removing sidekick from player", idx);
+          selectedSprites[idx].sidekick = null;
+          removedFromPlayer = idx;
+        }
+      });
+
+      // If we removed from a player and that player now has no characters, clear the slot
+      if (removedFromPlayer !== null) {
+        const s = selectedSprites[removedFromPlayer];
+        if (
+          (!s.main && !s.sidekick) ||
+          (s.main === null && s.sidekick === null)
+        ) {
+          console.log("Clearing empty player slot", removedFromPlayer);
+          selectedSprites[removedFromPlayer] = null;
+          selectedNames[removedFromPlayer] = "";
+        }
+      }
+
+      // Override target slot
+      if (!selectedSprites[playerIndex]) selectedSprites[playerIndex] = {};
+      selectedSprites[playerIndex][charType] = {
+        idx: data.idx,
+        file: data.file,
+      };
+      console.log("Updated selectedSprites:", selectedSprites);
+      updateSelectedCharacters();
+
+      // Play appropriate sound based on whether slot was empty
+      if (isTargetSlotEmpty) {
+        playSound(SFX.select);
+      } else {
+        playSound(SFX.clank1);
+      }
+    } else if (data.source === "player") {
+      console.log(
+        "Dropping from player",
+        data.playerIndex,
+        "to player",
+        playerIndex,
+        "charType",
+        charType
+      );
+      // Move from another player box
+      if (data.playerIndex === playerIndex && data.charType === charType) {
+        console.log("Same slot, ignoring");
+        return; // same slot
+      }
+      // Remove from old slot
+      if (selectedSprites[data.playerIndex]) {
+        console.log(
+          "Checking player",
+          data.playerIndex,
+          "for",
+          data.charType,
+          ":",
+          selectedSprites[data.playerIndex]
+        );
+
+        // Check new format first (main/sidekick properties)
+        if (selectedSprites[data.playerIndex][data.charType]) {
+          console.log("Removing from old player slot", data.playerIndex);
+          selectedSprites[data.playerIndex][data.charType] = null;
+          // If both main and sidekick are now null, clear the slot
+          const s = selectedSprites[data.playerIndex];
+          if (
+            (!s.main && !s.sidekick) ||
+            (s.main === null && s.sidekick === null)
+          ) {
+            console.log("Clearing empty player slot", data.playerIndex);
+            selectedSprites[data.playerIndex] = null;
+            selectedNames[data.playerIndex] = "";
+          }
+        }
+        // Check old format (type property)
+        else if (selectedSprites[data.playerIndex].type === data.charType) {
+          console.log(
+            "Removing from old player slot (old format)",
+            data.playerIndex
+          );
+          selectedSprites[data.playerIndex] = null;
+          selectedNames[data.playerIndex] = "";
+        } else {
+          console.log(
+            "No",
+            data.charType,
+            "found in player",
+            data.playerIndex,
+            "structure:",
+            selectedSprites[data.playerIndex]
+          );
+        }
+      }
+      // Override target slot
+      if (!selectedSprites[playerIndex]) selectedSprites[playerIndex] = {};
+      selectedSprites[playerIndex][charType] = {
+        idx: data.idx,
+        file: data.file,
+      };
+      console.log("Updated selectedSprites:", selectedSprites);
+      updateSelectedCharacters();
+
+      // Play appropriate sound based on whether slot was empty
+      if (isTargetSlotEmpty) {
+        playSound(SFX.select);
+      } else {
+        playSound(SFX.clank1);
+      }
+    }
+  };
+}
+
+function makeCharBoxDraggable(box, idx, file, type, playerIndex, charType) {
+  box.setAttribute("draggable", "true");
+  // Prevent default drag on the image element
+  const img = box.querySelector("img");
+  if (img) {
+    img.draggable = false;
+    img.ondragstart = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+  }
+  box.ondragstart = (e) => {
+    const dragData = {
+      idx,
+      file,
+      type,
+      source: "player",
+      playerIndex,
+      charType,
+    };
+    // Set global drag data for highlighting
+    currentDragData = dragData;
+    console.log("Dragging from character box:", dragData);
+    e.dataTransfer.setData("application/json", JSON.stringify(dragData));
+    // Use the drag image from spriteDrag folder
+    const dragImg = new window.Image();
+    dragImg.src = getDragImagePath(file);
+    dragImg.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 72;
+      canvas.height = 72;
+      const ctx = canvas.getContext("2d");
+      let drawW = 72,
+        drawH = 72;
+      const aspect = dragImg.naturalWidth / dragImg.naturalHeight;
+      if (aspect > 1) {
+        drawW = 72;
+        drawH = 72 / aspect;
+      } else {
+        drawH = 72;
+        drawW = 72 * aspect;
+      }
+      ctx.clearRect(0, 0, 72, 72);
+      ctx.drawImage(dragImg, (72 - drawW) / 2, (72 - drawH) / 2, drawW, drawH);
+      e.dataTransfer.setDragImage(canvas, 36, 36);
+    };
+    dragImg.onerror = () => {
+      // Fallback to current logic
+      const img = box.querySelector("img");
+      if (
+        img &&
+        img.complete &&
+        img.naturalWidth > 0 &&
+        img.naturalHeight > 0
+      ) {
+        const canvas = document.createElement("canvas");
+        canvas.width = 72;
+        canvas.height = 72;
+        const ctx = canvas.getContext("2d");
+        let drawW = 72,
+          drawH = 72;
+        const aspect = img.naturalWidth / img.naturalHeight;
+        if (aspect > 1) {
+          drawW = 72;
+          drawH = 72 / aspect;
+        } else {
+          drawH = 72;
+          drawW = 72 * aspect;
+        }
+        ctx.drawImage(img, (72 - drawW) / 2, (72 - drawH) / 2, drawW, drawH);
+        e.dataTransfer.setDragImage(canvas, 36, 36);
+      }
+    };
+  };
+  box.ondragend = (e) => {
+    // Clear global drag data if drag ends without dropping
+    currentDragData = null;
+  };
+}
