@@ -639,144 +639,110 @@ function updateSelectedCharacters() {
     div.className = "selected-char";
 
     const playerData = selectedSprites[i];
+    const mainChar = playerData && playerData.main ? playerData.main : null;
+    const sidekickChar =
+      playerData && playerData.sidekick ? playerData.sidekick : null;
 
-    if (playerData) {
-      // Determine background color based on main character
-      const mainChar =
-        playerData.main || (playerData.type === "main" ? playerData : null);
-      const sidekick =
-        playerData.sidekick ||
-        (playerData.type === "sidekick" ? playerData : null);
+    // Character pair container
+    const charPairContainer = document.createElement("div");
+    charPairContainer.className = "char-pair-container";
 
-      if (mainChar && spriteColors[mainChar.file]) {
-        div.style.background = spriteColors[mainChar.file];
-      } else if (sidekick && spriteColors[sidekick.file]) {
-        div.style.background = spriteColors[sidekick.file];
-      } else {
-        div.style.background = "#3a235a";
-      }
+    // Main character box
+    const mainCharDiv = document.createElement("div");
+    mainCharDiv.className = "main-char";
+    if (mainChar) {
+      const img = document.createElement("img");
+      img.src = SPRITES_FOLDER + mainChar.file;
+      img.alt = mainChar.file;
+      img.style.width = "60px";
+      img.style.height = "60px";
+      mainCharDiv.appendChild(img);
+      mainCharDiv.style.cursor = "pointer";
+      mainCharDiv.onclick = (e) => {
+        e.stopPropagation();
+        // Remove only the main character from this pair
+        if (playerData) {
+          if (playerData.sidekick) {
+            selectedSprites[i] = { sidekick: playerData.sidekick };
+          } else {
+            selectedSprites[i] = undefined;
+          }
+          updateSelectedCharacters();
+        }
+      };
+    } else {
+      mainCharDiv.classList.add("empty-slot");
+    }
+    charPairContainer.appendChild(mainCharDiv);
 
-      // Remove button
+    // Sidekick character box
+    const sidekickCharDiv = document.createElement("div");
+    sidekickCharDiv.className = "sidekick-char";
+    if (sidekickChar) {
+      const img = document.createElement("img");
+      img.src = SPRITES_FOLDER + sidekickChar.file;
+      img.alt = sidekickChar.file;
+      img.style.width = "50px";
+      img.style.height = "50px";
+      sidekickCharDiv.appendChild(img);
+      sidekickCharDiv.style.cursor = "pointer";
+      sidekickCharDiv.onclick = (e) => {
+        e.stopPropagation();
+        // Remove only the sidekick character from this pair
+        if (playerData) {
+          if (playerData.main) {
+            selectedSprites[i] = { main: playerData.main };
+          } else {
+            selectedSprites[i] = undefined;
+          }
+          updateSelectedCharacters();
+        }
+      };
+    } else {
+      sidekickCharDiv.classList.add("empty-slot");
+    }
+    charPairContainer.appendChild(sidekickCharDiv);
+
+    div.appendChild(charPairContainer);
+
+    // Name input
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Player name...";
+    input.value = selectedNames[i] || "";
+    input.oninput = (e) => {
+      selectedNames[i] = e.target.value;
+      checkStartFightEnabled();
+    };
+    div.appendChild(input);
+
+    // Remove button (removes both main and sidekick)
+    if (playerData && (mainChar || sidekickChar)) {
       const removeBtn = document.createElement("button");
       removeBtn.className = "remove-char-btn";
       removeBtn.innerHTML = "&times;";
       removeBtn.title = "Remove character pair";
       removeBtn.onclick = (e) => {
         e.stopPropagation();
-        playSound(SFX.clank1, 0.7);
-        selectedSprites.splice(i, 1);
-        selectedNames.splice(i, 1);
+        selectedSprites[i] = undefined;
+        selectedNames[i] = "";
         updateSelectedCharacters();
       };
       div.appendChild(removeBtn);
+    }
 
-      // Character pair container
-      const charPairContainer = document.createElement("div");
-      charPairContainer.className = "char-pair-container";
-      charPairContainer.style.display = "flex";
-      charPairContainer.style.flexDirection = "column";
-      charPairContainer.style.alignItems = "center";
-      charPairContainer.style.gap = "10px";
-
-      // Main character
-      if (mainChar) {
-        const mainCharDiv = document.createElement("div");
-        mainCharDiv.className = "main-char";
-        mainCharDiv.style.position = "relative";
-
-        const img = document.createElement("img");
-        img.src = SPRITES_FOLDER + mainChar.file;
-        img.alt = mainChar.file;
-        img.classList.add("bobbing");
-        img.style.animationDelay = `${(i * 0.5 + Math.random() * 0.5).toFixed(
-          2
-        )}s`;
-
-        // Special size for Mario_Fire and Mario_Giant
-        if (mainChar.file === "Mario_Fire.png") {
-          img.style.width = "80px";
-          img.style.height = "80px";
-        } else if (mainChar.file === "Mario_Giant.png") {
-          img.style.width = "100px";
-          img.style.height = "100px";
-          img.style.marginTop = "-10px";
-        } else {
-          img.style.width = "70px";
-          img.style.height = "70px";
-        }
-
-        mainCharDiv.appendChild(img);
-
-        // Main character label
-        const mainLabel = document.createElement("div");
-        mainLabel.textContent = "Main";
-        mainLabel.style.fontSize = "0.7em";
-        mainLabel.style.color = "#ffeb3b";
-        mainLabel.style.textShadow = "1px 1px 0 #000";
-        mainCharDiv.appendChild(mainLabel);
-
-        charPairContainer.appendChild(mainCharDiv);
-      }
-
-      // Sidekick character
-      if (sidekick) {
-        const sidekickDiv = document.createElement("div");
-        sidekickDiv.className = "sidekick-char";
-        sidekickDiv.style.position = "relative";
-
-        const img = document.createElement("img");
-        img.src = SPRITES_FOLDER + sidekick.file;
-        img.alt = sidekick.file;
-        img.classList.add("bobbing");
-        img.style.animationDelay = `${(
-          i * 0.5 +
-          0.25 +
-          Math.random() * 0.5
-        ).toFixed(2)}s`;
-
-        // Special size for Sidekick_DK
-        if (sidekick.file === "Sidekick_DK.png") {
-          img.style.width = "80px";
-          img.style.height = "80px";
-        } else {
-          img.style.width = "60px";
-          img.style.height = "60px";
-        }
-
-        sidekickDiv.appendChild(img);
-
-        // Sidekick label
-        const sidekickLabel = document.createElement("div");
-        sidekickLabel.textContent = "Sidekick";
-        sidekickLabel.style.fontSize = "0.7em";
-        sidekickLabel.style.color = "#4fc3f7";
-        sidekickLabel.style.textShadow = "1px 1px 0 #000";
-        sidekickDiv.appendChild(sidekickLabel);
-
-        charPairContainer.appendChild(sidekickDiv);
-      }
-
-      div.appendChild(charPairContainer);
-
-      // Name input
-      const input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = "Player name...";
-      input.value = selectedNames[i] || "";
-      input.oninput = (e) => {
-        selectedNames[i] = e.target.value;
-        checkStartFightEnabled();
-      };
-      div.appendChild(input);
+    // Set background color
+    if (mainChar && spriteColors[mainChar.file]) {
+      div.style.background = spriteColors[mainChar.file];
+    } else if (sidekickChar && spriteColors[sidekickChar.file]) {
+      div.style.background = spriteColors[sidekickChar.file];
     } else {
-      // Empty slot
+      div.style.background = "#3a235a";
+    }
+
+    // Empty slot styling
+    if (!playerData) {
       div.classList.add("empty");
-      div.innerHTML = `
-        <div style="text-align: center; color: #666; font-size: 0.8em;">
-          <div>Player ${i + 1}</div>
-          <div style="margin-top: 10px;">Select Main + Sidekick</div>
-        </div>
-      `;
     }
 
     container.appendChild(div);
@@ -788,30 +754,28 @@ function updateSelectedCharacters() {
     const idx = parseInt(opt.dataset.idx);
     const file = opt.dataset.file;
     const type = opt.dataset.type;
-
     // Check if this character is selected
     const isSelected = selectedSprites.some((s) => {
-      if (s.main && s.main.idx === idx) return true;
-      if (s.sidekick && s.sidekick.idx === idx) return true;
-      if (s.idx === idx) return true;
+      if (s && s.main && s.main.idx === idx) return true;
+      if (s && s.sidekick && s.sidekick.idx === idx) return true;
+      if (s && s.idx === idx) return true;
       return false;
     });
-
     // Always set background color
     if (spriteColors[file]) {
       opt.style.background = spriteColors[file];
     } else {
       opt.style.background = "#4b367c";
     }
-
     if (isSelected) {
       opt.classList.add("selected");
-      opt.style.outline = "4px solid #2ecc40";
-      opt.style.outline = "4px solid #2ecc40";
-      opt.style.filter = "brightness(0.85)";
+      opt.style.outline = "4px solid #ffeb3b";
+      opt.style.filter = "brightness(0.92)";
+      opt.style.boxShadow = "0 0 0 4px #ffeb3b55";
     } else {
       opt.style.outline = "";
       opt.style.filter = "";
+      opt.style.boxShadow = "";
     }
   });
 
@@ -883,15 +847,6 @@ document.getElementById("start-fight").onclick = () => {
     players[i].teamBuff = 0;
     players[i].hasAttackedThisTurn = false; // Track if main character has attacked
     players[i].sidekickHasAttackedThisTurn = false; // Track if sidekick has attacked
-
-    // Debug logging
-    console.log(`Player ${i + 1} setup:`, {
-      mainSpriteFile: players[i].mainSpriteFile,
-      sidekickSpriteFile: players[i].sidekickSpriteFile,
-      mainCharacter: players[i].mainCharacter,
-      sidekickCharacter: players[i].sidekickCharacter,
-      name: players[i].name,
-    });
   }
 
   boss.hp = BOSS_MAX_HP;
@@ -1120,14 +1075,6 @@ function draw() {
       const SPRITE_SIZE = 80; // Smaller size to fit both characters
       const SIDEKICK_SIZE = 60; // Even smaller for sidekick
       const PAIR_SPACING = 120; // Increased spacing between main and sidekick
-
-      // Debug logging for sprite drawing
-      console.log(`Drawing player ${i}:`, {
-        mainSpriteFile: p.mainSpriteFile,
-        sidekickSpriteFile: p.sidekickSpriteFile,
-        hasMainSprite: !!p.mainSpriteFile,
-        hasSidekickSprite: !!p.sidekickSpriteFile,
-      });
 
       // Draw main character
       if (p.mainSpriteFile) {
@@ -2847,7 +2794,10 @@ let titleSprites = [];
 
 // Update title text to include game title and click-to-start
 if (titleText) {
-  titleText.innerHTML = `<span class="game-title rainbow-text">${GAME_TITLE}</span><br><span class="rainbow-text">Click to start</span>`;
+  titleText.innerHTML = `
+    <object id="super-smash-svg" type="image/svg+xml" data="SuperSmashShowdown.svg" class="rainbow-svg-title" style="display:block;margin:0 auto;width:90%;max-width:600px;height:auto;"></object>
+    <br><span class="click-to-start-outline">Click to start</span>
+  `;
 }
 
 function resizeTitleCanvas() {

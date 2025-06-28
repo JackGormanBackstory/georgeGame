@@ -9,6 +9,7 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css?v=1" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   </head>
   <body>
     <div id="title-screen">
@@ -16,6 +17,7 @@
       <div id="title-text">Click to start</div>
     </div>
     <div id="character-select-screen">
+      <button id="return-main-menu" class="snes-btn">Menu</button>
       <h2>Select 4 Character Pairs</h2>
       <p
         style="
@@ -30,9 +32,11 @@
       <div id="sprite-grid"></div>
       <h3 id="selected-characters-heading">Selected Character Pairs</h3>
       <div id="selected-characters"></div>
-      <button id="start-fight" disabled>Start Fight</button>
-      <button id="load-save-select">Load Save</button>
-      <div id="music-controls-select"></div>
+      <div id="character-select-controls">
+        <button id="load-save-select">Load save</button>
+        <button id="start-fight" disabled>Start fight</button>
+        <div id="music-controls-select"></div>
+      </div>
     </div>
     <div id="game-container" style="display: none">
       <canvas id="game-canvas"></canvas>
