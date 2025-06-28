@@ -356,36 +356,43 @@ button:disabled:hover,
 #sprite-grid {
   display: block;
   width: 100%;
-  margin: 0 auto 20px auto;
+  /* margin: 0 auto 20px auto; */
   padding: 10px;
 }
 .sprite-option {
-  position: relative;
+  width: 160px;
+  height: 140px;
   background: #4b367c;
-  border: 3px solid #fff;
+  border: 3px solid #ffffff;
   border-radius: 8px;
-  padding: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
+  padding: 12px 8px 8px 8px;
+  min-height: unset;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 0px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.32),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.18);
+  text-align: center;
   box-sizing: border-box;
-  width: 100%;
 }
 .sprite-option img {
-  max-width: 100%;
+  width: 100%;
   height: auto;
-  max-height: 80px;
+  max-height: 60px;
   object-fit: contain;
+  display: block;
+  margin: 0 auto;
+  flex-shrink: 0;
 }
 .sprite-label {
-  font-size: 0.6em;
-  margin-top: 5px;
-  text-align: center;
+  font-size: 0.5em;
+  margin-top: 8px;
   color: #fff;
+  text-align: center;
+  font-weight: bold;
   text-shadow: 1px 1px 0 #000;
   line-height: 1.2;
 }
@@ -393,13 +400,16 @@ button:disabled:hover,
   display: flex;
   flex-direction: row;
   justify-content: center;
+  align-items: center;
   gap: 32px;
   width: 100%;
-  margin-bottom: 15px;
+  margin-bottom: 0;
+  min-height: 200px;
+  max-width: none;
 }
 .selected-char {
   position: relative;
-  background: #3a235a;
+  background: #383838;
   border: 3px solid #fff;
   border-radius: 8px;
   padding: 18px 16px 12px 16px;
@@ -411,9 +421,11 @@ button:disabled:hover,
   justify-content: flex-start;
   box-sizing: border-box;
   gap: 8px;
+  box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.32),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.18);
 }
 .selected-char.empty {
-  background: #2d1b47;
+  background: #23232b;
   border: 3px dashed #666;
   color: #666;
   display: flex;
@@ -421,6 +433,23 @@ button:disabled:hover,
   justify-content: center;
   text-align: center;
   font-size: 0.8em;
+}
+.selected-char.empty.next-slot {
+  border: 3px dashed #4caf50;
+  border-color: #4caf50;
+  box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+  animation: pulse-green 2s ease-in-out infinite;
+}
+@keyframes pulse-green {
+  0%,
+  100% {
+    border-color: #4caf50;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+  }
+  50% {
+    border-color: #66bb6a;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+  }
 }
 .char-pair-container {
   display: flex;
@@ -436,14 +465,23 @@ button:disabled:hover,
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  min-width: 70px;
-  min-height: 70px;
-  background: #e0e0e0;
+  width: 70px;
+  height: 70px;
   border-radius: 6px;
   border: 2px solid #bbb;
   box-shadow: 0 2px 6px #2222;
   padding: 8px 6px 4px 6px;
   margin: 0 4px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.main-char img,
+.sidekick-char img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  flex-shrink: 0;
 }
 .main-char-label,
 .sidekick-char-label {
@@ -475,37 +513,15 @@ button:disabled:hover,
 /* Section headers in character select */
 #sprite-grid h3 {
   font-family: "Press Start 2P", monospace, sans-serif;
-  font-size: 1em;
-  margin: 15px 0 8px 0;
+  font-size: 1.5em;
+  color: #fff;
+  margin: 15px 0 15px 0;
   text-shadow: 2px 2px 0 #000;
   grid-column: 1 / -1;
   text-align: center;
 }
 /* Character type indicators */
-.sprite-option.main-character::before {
-  content: "MAIN";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  background: #ffeb3b;
-  color: #000;
-  font-size: 0.5em;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-weight: bold;
-}
-.sprite-option.sidekick::before {
-  content: "SIDEKICK";
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  background: #4fc3f7;
-  color: #000;
-  font-size: 0.5em;
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-weight: bold;
-}
+/* Remove the MAIN and SIDEKICK pseudo-labels */
 /* Responsive adjustments for the new side-by-side layout */
 @media (max-width: 1024px) {
   #sprite-grid > div {
@@ -543,6 +559,9 @@ button:disabled:hover,
 
   .sprite-option img {
     max-height: 50px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
   }
 
   .sprite-label {
@@ -559,8 +578,18 @@ button:disabled:hover,
     padding: 8px;
   }
 
+  .main-char,
+  .sidekick-char {
+    width: 40px;
+    height: 40px;
+    padding: 3px 2px 1px 2px;
+  }
+
+  .main-char img,
   .sidekick-char img {
-    max-height: 35px;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 }
 @media (max-width: 480px) {
@@ -574,6 +603,9 @@ button:disabled:hover,
 
   .sprite-option img {
     max-height: 40px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
   }
 
   #selected-characters {
@@ -583,6 +615,20 @@ button:disabled:hover,
 
   .selected-char {
     min-height: 120px;
+  }
+
+  .main-char,
+  .sidekick-char {
+    width: 40px;
+    height: 40px;
+    padding: 3px 2px 1px 2px;
+  }
+
+  .main-char img,
+  .sidekick-char img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 }
 #start-fight,
@@ -681,16 +727,15 @@ button:disabled:hover,
   font-size: 1.1em;
   font-weight: bold;
   text-align: center;
-  color: #fff;
+  color: #2d1b47;
   letter-spacing: 1px;
-  text-shadow: 2px 2px 0 #000, 0 0 2px #fff;
-  background: #3a235a
-    url('data:image/svg+xml;utf8,<svg width="8" height="8" xmlns="http://www.w3.org/2000/svg"><rect width="8" height="8" fill="%233a235a"/><rect x="0" y="0" width="4" height="4" fill="%234b367c"/><rect x="4" y="4" width="4" height="4" fill="%234b367c"/></svg>');
-  border: 4px solid #fff;
-  border-radius: 0;
+  text-shadow: 1px 1px 0 #fff;
+  background: #d0d0d0;
+  border: 2px solid #bbb;
+  border-radius: 4px;
   padding: 8px 24px;
   display: inline-block;
-  animation: snes-border-cycle 2.5s linear infinite;
+  margin-bottom: 20px;
 }
 .draw-health-bar-glow {
   filter: none;
@@ -1103,16 +1148,68 @@ button:disabled:hover,
   color: #b71c1c;
 }
 .sprite-option.selected {
-  border: 3px solid #ffeb3b !important;
-  box-shadow: 0 0 0 4px #ffeb3b55;
-  outline: 4px solid #ffeb3b;
-  filter: brightness(0.92);
+  border: 3px solid #00d31c;
+  filter: brightness(1.2);
   z-index: 2;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.6),
+    inset 3px 3px 8px rgba(0, 0, 0, 0.32),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.1);
+  transition: transform 0.2s ease-out;
+}
+.sprite-option.selected img {
+  transform: scale(1.15);
+  transition: transform 0.2s ease-out;
+  animation: sprite-hover 2s ease-in-out infinite;
+}
+
+@keyframes sprite-hover {
+  0%,
+  100% {
+    transform: scale(1.1) translateY(0px);
+  }
+  50% {
+    transform: scale(1.1) translateY(-6px);
+  }
+}
+
+.sprite-option.selected::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    60deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.8) 50%,
+    transparent 60%
+  );
+  animation: shimmer 6s ease-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%) translateY(-100%) rotate(60deg);
+  }
+  15% {
+    transform: translateX(0%) translateY(0%) rotate(60deg);
+  }
+  25% {
+    transform: translateX(100%) translateY(100%) rotate(60deg);
+  }
+  100% {
+    transform: translateX(100%) translateY(100%) rotate(60deg);
+  }
 }
 .sprite-option:hover {
   background: #6b4fa3;
   border-color: #ffeb3b;
-  transform: scale(1.02);
+  filter: brightness(1.2);
 }
 @keyframes bobbing {
   0% {
@@ -1141,6 +1238,26 @@ button:disabled:hover,
   flex-direction: column;
   align-items: center;
   width: 100%;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.32),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.1), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.character-grid-wrapper.main-characters {
+  background: linear-gradient(135deg, #ccc053 0%, #d3b42c 50%, #cf9400 100%);
+  border: 4px solid #fff;
+  box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.2),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(255, 235, 59, 0.3);
+}
+
+.character-grid-wrapper.sidekick-characters {
+  background: linear-gradient(135deg, #66abcb 0%, #1f89ba 50%, #006ca7 100%);
+  border: 4px solid #fff;
+  box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.2),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(79, 195, 247, 0.3);
 }
 .character-grid-header {
   margin-bottom: 12px;
@@ -1157,23 +1274,23 @@ button:disabled:hover,
 }
 .character-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(120px, 200px));
-  grid-template-rows: repeat(2, 120px);
-  gap: 18px;
-  justify-content: center;
-  align-items: center;
-  background: none;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  place-items: center;
 }
 .character-grid .sprite-option {
   height: 120px;
   min-width: unset;
   min-height: unset;
+  max-width: 100%;
+  max-height: 140px;
   margin: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 @media (max-width: 900px) {
   .character-grids-container {
@@ -1235,6 +1352,44 @@ button:disabled:hover,
   align-items: flex-end;
   justify-content: center;
 }
+
+.main-char.empty-slot.next-slot {
+  border: 2px dashed #d3b42c;
+  border-color: #d3b42c;
+  box-shadow: 0 0 8px rgba(211, 180, 44, 0.4);
+  animation: pulse-yellow-slot 2s ease-in-out infinite;
+}
+
+.sidekick-char.empty-slot.next-slot {
+  border: 2px dashed #1f89ba;
+  border-color: #1f89ba;
+  box-shadow: 0 0 8px rgba(31, 137, 186, 0.4);
+  animation: pulse-blue-slot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-yellow-slot {
+  0%,
+  100% {
+    border-color: #d3b42c;
+    box-shadow: 0 0 8px rgba(211, 180, 44, 0.4);
+  }
+  50% {
+    border-color: #cf9400;
+    box-shadow: 0 0 12px rgba(211, 180, 44, 0.6);
+  }
+}
+
+@keyframes pulse-blue-slot {
+  0%,
+  100% {
+    border-color: #1f89ba;
+    box-shadow: 0 0 8px rgba(31, 137, 186, 0.4);
+  }
+  50% {
+    border-color: #006ca7;
+    box-shadow: 0 0 12px rgba(31, 137, 186, 0.6);
+  }
+}
 .selected-char {
   min-width: 220px;
   max-width: 220px;
@@ -1282,4 +1437,91 @@ button:disabled:hover,
   -webkit-text-stroke: 2px #111;
   text-stroke: 4px #111;
   font-weight: extra-bold;
+}
+/* Selected characters section wrapper */
+.selected-characters-wrapper {
+  background: #e0e0e0;
+  border: 3px solid #bbb;
+  border-radius: 8px;
+  padding: 20px;
+  align-items: center;
+  margin: 20px 0;
+  box-shadow: inset 3px 3px 8px rgba(0, 0, 0, 0.32),
+    inset -3px -3px 8px rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .selected-characters-wrapper {
+    padding: 15px;
+    margin: 15px 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .selected-characters-wrapper {
+    padding: 10px;
+    margin: 10px 0;
+  }
+}
+
+/* Main character box with a selected character */
+.main-char:not(.empty-slot) {
+  background: #fff9c4;
+}
+
+/* Sidekick character box with a selected character */
+.sidekick-char:not(.empty-slot) {
+  background: #bbdefb;
+}
+
+/* When 4 mains are selected, non-selected main sprites are darkened and borderless */
+.character-grid.main-grid.mains-full .sprite-option:not(.selected),
+.character-grid.sidekick-grid.sidekicks-full .sprite-option:not(.selected) {
+  border: none !important;
+  filter: brightness(0.5) grayscale(0.3);
+  pointer-events: none;
+  box-shadow: none !important;
+}
+
+/* Wrapper for selected-char and player number */
+.selected-char-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  position: relative;
+}
+
+/* Player number badge above selected-char (not absolute) */
+.selected-char-wrapper > .player-number-badge {
+  position: static;
+  margin-bottom: 4px;
+  margin-left: 0;
+  margin-right: 0;
+  width: 28px;
+  height: 28px;
+  font-size: 1.1em;
+  color: #2d1b47;
+  align-self: center;
+  z-index: 1;
+}
+
+/* Keep absolute for grid sprite-option */
+.sprite-option .player-number-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 22px;
+  height: 22px;
+  font-size: 0.95em;
+  line-height: 1.45em;
+  border-width: 2px;
+  background: #fff9c4;
+  color: #222;
+  border-radius: 50%;
+  z-index: 4;
+  pointer-events: none;
 }
