@@ -541,46 +541,150 @@ function showCharacterSelect() {
   charMenuBtn.style.display = "";
 }
 
+// Add debounce mechanism to prevent rapid clicking issues
+let lastClickTime = 0;
+const CLICK_DEBOUNCE = 100; // 100ms debounce
+
+function cleanupSelectedArrays() {
+  // Remove any undefined entries and gaps from the arrays
+  for (let i = selectedSprites.length - 1; i >= 0; i--) {
+    if (!selectedSprites[i]) {
+      selectedSprites.splice(i, 1);
+      selectedNames.splice(i, 1);
+    }
+  }
+}
+
 function toggleSelectSprite(idx, file, type) {
-  // Find if this character is already selected
-  const alreadySelected = selectedSprites.findIndex((s) => {
-    if (s.main && s.main.idx === idx) return true;
-    if (s.sidekick && s.sidekick.idx === idx) return true;
-    if (s.idx === idx) return true;
+  // Debounce rapid clicks
+  const now = Date.now();
+  if (now - lastClickTime < CLICK_DEBOUNCE) {
+    return;
+  }
+  lastClickTime = now;
+
+  // Clean up arrays first to ensure no gaps
+  cleanupSelectedArrays();
+
+  // Check if this character is already selected
+  let alreadySelected = -1;
+
+  // Find if this character is already selected as the same type
+  alreadySelected = selectedSprites.findIndex((s) => {
+    if (!s) return false; // Skip undefined entries
+
+    // Check if this specific character is selected as the same type
+    if (type === "main" && s.main && s.main.idx === idx) return true;
+    if (type === "sidekick" && s.sidekick && s.sidekick.idx === idx)
+      return true;
+    if (type === s.type && s.idx === idx) return true; // Old format
+
     return false;
   });
 
   if (alreadySelected !== -1) {
-    // Deselect
+    // Deselect - remove the specific character
     playSound(SFX.clank1, 0.7);
-    selectedSprites.splice(alreadySelected, 1);
-    selectedNames.splice(alreadySelected, 1);
+    const playerData = selectedSprites[alreadySelected];
+
+    console.log(`Removing character - type: ${type}, idx: ${idx}`);
+    console.log(`Before removal - playerData:`, playerData);
+
+    if (playerData && (playerData.main || playerData.sidekick)) {
+      // New format - remove only the specific character type
+      if (type === "main") {
+        if (playerData.sidekick && playerData.sidekick.file) {
+          selectedSprites[alreadySelected] = { sidekick: playerData.sidekick };
+          console.log(`After removing main - keeping sidekick:`, {
+            sidekick: playerData.sidekick,
+          });
+        } else {
+          // No valid sidekick, remove entire slot
+          selectedSprites.splice(alreadySelected, 1);
+          selectedNames.splice(alreadySelected, 1);
+          console.log(
+            `After removing main - no valid sidekick, removed entire slot`
+          );
+        }
+      } else if (type === "sidekick") {
+        if (playerData.main && playerData.main.file) {
+          selectedSprites[alreadySelected] = { main: playerData.main };
+          console.log(`After removing sidekick - keeping main:`, {
+            main: playerData.main,
+          });
+        } else {
+          // No valid main, remove entire slot
+          selectedSprites.splice(alreadySelected, 1);
+          selectedNames.splice(alreadySelected, 1);
+          console.log(
+            `After removing sidekick - no valid main, removed entire slot`
+          );
+        }
+      }
+      cleanupSelectedArrays();
+    } else if (playerData && playerData.idx === idx) {
+      // Old format with type property - remove entire slot
+      selectedSprites.splice(alreadySelected, 1);
+      selectedNames.splice(alreadySelected, 1);
+      console.log(`After removing old format character - removed entire slot`);
+      cleanupSelectedArrays();
+    }
   } else {
     // Find the appropriate player slot
     let playerIndex = -1;
+
+    console.log("Looking for slot for type:", type);
+    console.log("Current selectedSprites:", selectedSprites);
 
     // First, try to find a player that already has a character of the opposite type
     for (let i = 0; i < selectedSprites.length; i++) {
       const playerData = selectedSprites[i];
       if (playerData) {
-        const hasMain = playerData.main || playerData.type === "main";
-        const hasSidekick =
-          playerData.sidekick || playerData.type === "sidekick";
+        const hasMain = !!(playerData.main || playerData.type === "main");
+        const hasSidekick = !!(
+          playerData.sidekick || playerData.type === "sidekick"
+        );
+
+        console.log(
+          `Slot ${i}: hasMain=${hasMain}, hasSidekick=${hasSidekick}`
+        );
 
         if (type === "main" && !hasMain) {
           playerIndex = i;
+          console.log(`Found slot ${i} for main character`);
           break;
         } else if (type === "sidekick" && !hasSidekick) {
           playerIndex = i;
+          console.log(`Found slot ${i} for sidekick character`);
           break;
         }
       }
     }
 
-    // If no existing player slot found, create a new one
-    if (playerIndex === -1 && selectedSprites.length < 4) {
-      playerIndex = selectedSprites.length;
+    // If no existing player slot found, find the first available slot or create a new one
+    if (playerIndex === -1) {
+      // Count actual valid entries to determine if we can add more
+      const validEntries = selectedSprites.filter((s) => s).length;
+
+      if (validEntries < 4) {
+        // Find the first available slot (including gaps)
+        for (let i = 0; i < 4; i++) {
+          if (!selectedSprites[i]) {
+            playerIndex = i;
+            console.log(`Found available slot ${i}`);
+            break;
+          }
+        }
+
+        // If no gaps found, add to the end
+        if (playerIndex === -1) {
+          playerIndex = selectedSprites.length;
+          console.log(`Creating new slot ${playerIndex}`);
+        }
+      }
     }
+
+    console.log("Final playerIndex:", playerIndex);
 
     if (playerIndex !== -1 && playerIndex < 4) {
       const existingPlayer = selectedSprites[playerIndex];
@@ -589,11 +693,31 @@ function toggleSelectSprite(idx, file, type) {
         // First character for this player
         selectedSprites[playerIndex] = { idx, file, type };
         selectedNames[playerIndex] = "";
+      } else if (existingPlayer.main || existingPlayer.sidekick) {
+        // Existing player is in new format - add to the appropriate slot
+        if (type === "main") {
+          selectedSprites[playerIndex] = {
+            main: { idx, file },
+            sidekick: existingPlayer.sidekick || null,
+          };
+        } else if (type === "sidekick") {
+          selectedSprites[playerIndex] = {
+            main: existingPlayer.main || null,
+            sidekick: { idx, file },
+          };
+        }
+        selectedNames[playerIndex] = selectedNames[playerIndex] || "";
       } else if (existingPlayer.type !== type) {
-        // Different type, can add as pair
+        // Different type, can add as pair (old format)
         selectedSprites[playerIndex] = {
-          main: type === "main" ? { idx, file } : existingPlayer,
-          sidekick: type === "sidekick" ? { idx, file } : existingPlayer,
+          main:
+            type === "main"
+              ? { idx, file }
+              : { idx: existingPlayer.idx, file: existingPlayer.file },
+          sidekick:
+            type === "sidekick"
+              ? { idx, file }
+              : { idx: existingPlayer.idx, file: existingPlayer.file },
         };
         selectedNames[playerIndex] = selectedNames[playerIndex] || "";
       } else {
@@ -618,6 +742,8 @@ function updateSelectedCharacters() {
   const container = document.getElementById("selected-characters");
   container.innerHTML = "";
 
+  console.log("updateSelectedCharacters - selectedSprites:", selectedSprites);
+
   // Sprite color mapping
   const spriteColors = {
     "Sidekick_Peach.png": "rgb(247,164,187)",
@@ -639,9 +765,48 @@ function updateSelectedCharacters() {
     div.className = "selected-char";
 
     const playerData = selectedSprites[i];
-    const mainChar = playerData && playerData.main ? playerData.main : null;
-    const sidekickChar =
-      playerData && playerData.sidekick ? playerData.sidekick : null;
+    console.log(`Slot ${i} playerData:`, playerData);
+
+    // Handle both data structures: {main: {...}, sidekick: {...}} and {idx, file, type}
+    let mainChar = null;
+    let sidekickChar = null;
+
+    if (playerData) {
+      console.log(`Slot ${i} - playerData.main:`, playerData.main);
+      console.log(`Slot ${i} - playerData.sidekick:`, playerData.sidekick);
+
+      // Check for new format with main and sidekick properties
+      if (playerData.main) {
+        mainChar =
+          playerData.main && playerData.main.file ? playerData.main : null;
+        console.log(`Slot ${i} - mainChar after parsing:`, mainChar);
+      }
+      if (playerData.sidekick) {
+        sidekickChar =
+          playerData.sidekick && playerData.sidekick.file
+            ? playerData.sidekick
+            : null;
+        console.log(`Slot ${i} - sidekickChar after parsing:`, sidekickChar);
+      }
+
+      // If no characters found in new format, check old format
+      if (!mainChar && !sidekickChar) {
+        if (playerData.type === "main" && playerData.file) {
+          // Old format with type property
+          mainChar = { idx: playerData.idx, file: playerData.file };
+        } else if (playerData.type === "sidekick" && playerData.file) {
+          // Old format with type property
+          sidekickChar = { idx: playerData.idx, file: playerData.file };
+        }
+      }
+    }
+
+    console.log(
+      `Slot ${i} - mainChar:`,
+      mainChar,
+      "sidekickChar:",
+      sidekickChar
+    );
 
     // Character pair container
     const charPairContainer = document.createElement("div");
@@ -650,12 +815,28 @@ function updateSelectedCharacters() {
     // Main character box
     const mainCharDiv = document.createElement("div");
     mainCharDiv.className = "main-char";
-    if (mainChar) {
+    if (mainChar && mainChar.file) {
+      console.log(
+        `Creating main character image for slot ${i}:`,
+        mainChar.file
+      );
       const img = document.createElement("img");
       img.src = SPRITES_FOLDER + mainChar.file;
       img.alt = mainChar.file;
       img.style.width = "60px";
       img.style.height = "60px";
+
+      // Add error handling for image loading
+      img.onerror = () => {
+        console.error(
+          "Failed to load main character image:",
+          SPRITES_FOLDER + mainChar.file
+        );
+      };
+      img.onload = () => {
+        console.log("Successfully loaded main character image:", mainChar.file);
+      };
+
       mainCharDiv.appendChild(img);
       mainCharDiv.style.cursor = "pointer";
       mainCharDiv.onclick = (e) => {
@@ -665,8 +846,11 @@ function updateSelectedCharacters() {
           if (playerData.sidekick) {
             selectedSprites[i] = { sidekick: playerData.sidekick };
           } else {
-            selectedSprites[i] = undefined;
+            // No sidekick, remove entire slot
+            selectedSprites.splice(i, 1);
+            selectedNames.splice(i, 1);
           }
+          cleanupSelectedArrays();
           updateSelectedCharacters();
         }
       };
@@ -678,12 +862,31 @@ function updateSelectedCharacters() {
     // Sidekick character box
     const sidekickCharDiv = document.createElement("div");
     sidekickCharDiv.className = "sidekick-char";
-    if (sidekickChar) {
+    if (sidekickChar && sidekickChar.file) {
+      console.log(
+        `Creating sidekick character image for slot ${i}:`,
+        sidekickChar.file
+      );
       const img = document.createElement("img");
       img.src = SPRITES_FOLDER + sidekickChar.file;
       img.alt = sidekickChar.file;
       img.style.width = "50px";
       img.style.height = "50px";
+
+      // Add error handling for image loading
+      img.onerror = () => {
+        console.error(
+          "Failed to load sidekick character image:",
+          SPRITES_FOLDER + sidekickChar.file
+        );
+      };
+      img.onload = () => {
+        console.log(
+          "Successfully loaded sidekick character image:",
+          sidekickChar.file
+        );
+      };
+
       sidekickCharDiv.appendChild(img);
       sidekickCharDiv.style.cursor = "pointer";
       sidekickCharDiv.onclick = (e) => {
@@ -693,8 +896,11 @@ function updateSelectedCharacters() {
           if (playerData.main) {
             selectedSprites[i] = { main: playerData.main };
           } else {
-            selectedSprites[i] = undefined;
+            // No main, remove entire slot
+            selectedSprites.splice(i, 1);
+            selectedNames.splice(i, 1);
           }
+          cleanupSelectedArrays();
           updateSelectedCharacters();
         }
       };
@@ -724,17 +930,23 @@ function updateSelectedCharacters() {
       removeBtn.title = "Remove character pair";
       removeBtn.onclick = (e) => {
         e.stopPropagation();
-        selectedSprites[i] = undefined;
-        selectedNames[i] = "";
+        // Remove the slot
+        selectedSprites.splice(i, 1);
+        selectedNames.splice(i, 1);
+        cleanupSelectedArrays();
         updateSelectedCharacters();
       };
       div.appendChild(removeBtn);
     }
 
     // Set background color
-    if (mainChar && spriteColors[mainChar.file]) {
+    if (mainChar && mainChar.file && spriteColors[mainChar.file]) {
       div.style.background = spriteColors[mainChar.file];
-    } else if (sidekickChar && spriteColors[sidekickChar.file]) {
+    } else if (
+      sidekickChar &&
+      sidekickChar.file &&
+      spriteColors[sidekickChar.file]
+    ) {
       div.style.background = spriteColors[sidekickChar.file];
     } else {
       div.style.background = "#3a235a";
