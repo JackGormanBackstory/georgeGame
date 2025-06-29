@@ -36,7 +36,7 @@ const PLAYER_POSITIONS = [
 const BOSS_POSITION = { x: 400, y: 420 };
 
 const PLAYER_MAX_HP = 30;
-const BOSS_MAX_HP = 100;
+const BOSS_MAX_HP = 200;
 
 let players = [
   {
@@ -46,6 +46,8 @@ let players = [
     anim: 0,
     barShake: 0,
     attackOffset: { x: 0, y: 0 },
+    mainAttackOffset: { x: 0, y: 0 }, // Individual main character animation
+    sidekickAttackOffset: { x: 0, y: 0 }, // Individual sidekick animation
     specialCharge: 0,
     specialReady: false,
     teamBuff: 0, // +1 damage from Toad
@@ -56,6 +58,15 @@ let players = [
     sidekickAttackSelected: false, // Whether sidekick has selected attack type
     mainAttackType: null, // 'regular' or 'special'
     sidekickAttackType: null, // 'regular' or 'special'
+    mainCharacter: undefined,
+    sidekickCharacter: undefined,
+    mainSpriteFile: undefined,
+    sidekickSpriteFile: undefined,
+    spriteFile: undefined,
+    name: "",
+    _spriteImg: undefined,
+    _mainSpriteImg: undefined,
+    _sidekickSpriteImg: undefined,
   },
   {
     hp: PLAYER_MAX_HP,
@@ -64,6 +75,36 @@ let players = [
     anim: 0,
     barShake: 0,
     attackOffset: { x: 0, y: 0 },
+    mainAttackOffset: { x: 0, y: 0 },
+    sidekickAttackOffset: { x: 0, y: 0 },
+    specialCharge: 0,
+    specialReady: false,
+    teamBuff: 0,
+    mainSpecialCharges: 2,
+    sidekickSpecialCharges: 2,
+    mainAttackSelected: false,
+    sidekickAttackSelected: false,
+    mainAttackType: null,
+    sidekickAttackType: null,
+    mainCharacter: undefined,
+    sidekickCharacter: undefined,
+    mainSpriteFile: undefined,
+    sidekickSpriteFile: undefined,
+    spriteFile: undefined,
+    name: "",
+    _spriteImg: undefined,
+    _mainSpriteImg: undefined,
+    _sidekickSpriteImg: undefined,
+  },
+  {
+    hp: PLAYER_MAX_HP,
+    displayHp: PLAYER_MAX_HP,
+    alive: true,
+    anim: 0,
+    barShake: 0,
+    attackOffset: { x: 0, y: 0 },
+    mainAttackOffset: { x: 0, y: 0 },
+    sidekickAttackOffset: { x: 0, y: 0 },
     specialCharge: 0,
     specialReady: false,
     teamBuff: 0,
@@ -81,23 +122,8 @@ let players = [
     anim: 0,
     barShake: 0,
     attackOffset: { x: 0, y: 0 },
-    specialCharge: 0,
-    specialReady: false,
-    teamBuff: 0,
-    mainSpecialCharges: 2,
-    sidekickSpecialCharges: 2,
-    mainAttackSelected: false,
-    sidekickAttackSelected: false,
-    mainAttackType: null,
-    sidekickAttackType: null,
-  },
-  {
-    hp: PLAYER_MAX_HP,
-    displayHp: PLAYER_MAX_HP,
-    alive: true,
-    anim: 0,
-    barShake: 0,
-    attackOffset: { x: 0, y: 0 },
+    mainAttackOffset: { x: 0, y: 0 },
+    sidekickAttackOffset: { x: 0, y: 0 },
     specialCharge: 0,
     specialReady: false,
     teamBuff: 0,
@@ -1120,6 +1146,7 @@ document.getElementById("start-fight").onclick = () => {
   gameState = "player";
   playersThisRound = [];
   updateTurnIndicator();
+  updateAttackButtons(); // Update attack buttons with character special attack names
   document.getElementById("character-select-screen").style.display = "none";
   document.getElementById("game-container").style.display = "";
   draw();
@@ -1320,15 +1347,11 @@ function draw() {
   if (!showWinScreen) {
     players.forEach((p, i) => {
       const basePos = positions.players[i];
-      const pos = {
-        x: basePos.x + (p.attackOffset?.x || 0),
-        y: basePos.y + (p.attackOffset?.y || 0),
-      };
       ctx.save();
       if (p.anim > 0) {
-        ctx.translate(pos.x, pos.y);
+        ctx.translate(basePos.x, basePos.y);
         ctx.rotate((Math.random() - 0.5) * 0.1 * p.anim); // shake
-        ctx.translate(-pos.x, -pos.y);
+        ctx.translate(-basePos.x, -basePos.y);
       }
 
       // Draw character pair (main + sidekick)
@@ -1336,7 +1359,7 @@ function draw() {
       const SIDEKICK_SIZE = 60; // Even smaller for sidekick
       const PAIR_SPACING = 120; // Increased spacing between main and sidekick
 
-      // Draw main character
+      // Draw main character with individual offset
       if (p.mainSpriteFile) {
         let mainImg = p._mainSpriteImg;
         if (!mainImg) {
@@ -1396,11 +1419,16 @@ function draw() {
             ctx.filter = "grayscale(1)";
           }
 
-          // Draw main character slightly to the left
+          // Draw main character with individual animation offset
+          const mainPos = {
+            x: basePos.x - PAIR_SPACING / 2 + (p.mainAttackOffset?.x || 0),
+            y: basePos.y + yOffset + (p.mainAttackOffset?.y || 0),
+          };
+
           ctx.drawImage(
             mainImg,
-            pos.x - drawW / 2 - PAIR_SPACING / 2,
-            pos.y - drawH / 2 + yOffset,
+            mainPos.x - drawW / 2,
+            mainPos.y - drawH / 2,
             drawW,
             drawH
           );
@@ -1419,7 +1447,7 @@ function draw() {
           ctx.save();
           ctx.fillStyle = PLAYER_COLORS[i];
           ctx.beginPath();
-          ctx.arc(pos.x - PAIR_SPACING / 2, pos.y, 30, 0, Math.PI * 2);
+          ctx.arc(basePos.x - PAIR_SPACING / 2, basePos.y, 30, 0, Math.PI * 2);
           ctx.fill();
           ctx.strokeStyle = "#fff";
           ctx.lineWidth = 2;
@@ -1428,7 +1456,7 @@ function draw() {
         }
       }
 
-      // Draw sidekick character
+      // Draw sidekick character with individual offset
       if (p.sidekickSpriteFile) {
         let sidekickImg = p._sidekickSpriteImg;
         if (!sidekickImg) {
@@ -1485,11 +1513,16 @@ function draw() {
             ctx.filter = "grayscale(1)";
           }
 
-          // Draw sidekick slightly to the right
+          // Draw sidekick with individual animation offset
+          const sidekickPos = {
+            x: basePos.x + PAIR_SPACING / 2 + (p.sidekickAttackOffset?.x || 0),
+            y: basePos.y + yOffset + (p.sidekickAttackOffset?.y || 0),
+          };
+
           ctx.drawImage(
             sidekickImg,
-            pos.x - drawW / 2 + PAIR_SPACING / 2,
-            pos.y - drawH / 2 + yOffset,
+            sidekickPos.x - drawW / 2,
+            sidekickPos.y - drawH / 2,
             drawW,
             drawH
           );
@@ -1508,7 +1541,7 @@ function draw() {
           ctx.save();
           ctx.fillStyle = PLAYER_COLORS[i];
           ctx.beginPath();
-          ctx.arc(pos.x + PAIR_SPACING / 2, pos.y, 25, 0, Math.PI * 2);
+          ctx.arc(basePos.x + PAIR_SPACING / 2, basePos.y, 25, 0, Math.PI * 2);
           ctx.fill();
           ctx.strokeStyle = "#fff";
           ctx.lineWidth = 2;
@@ -1526,8 +1559,8 @@ function draw() {
         ctx.lineWidth = 4;
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.strokeText("DEAD", pos.x, pos.y);
-        ctx.fillText("DEAD", pos.x, pos.y);
+        ctx.strokeText("DEAD", basePos.x, basePos.y);
+        ctx.fillText("DEAD", basePos.x, basePos.y);
         ctx.restore();
       }
 
@@ -1549,7 +1582,11 @@ function draw() {
       ctx.fillStyle = "#fff";
       ctx.font = "16px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(p.name || `P${i + 1}`, pos.x, pos.y - SPRITE_SIZE / 2 - 15);
+      ctx.fillText(
+        p.name || `P${i + 1}`,
+        basePos.x,
+        basePos.y - SPRITE_SIZE / 2 - 15
+      );
     });
   }
 
@@ -1947,21 +1984,21 @@ function playerAttack() {
     if (animFrames > 21) {
       // Wind-up: move back
       let t = (48 - animFrames) / 6;
-      players[currentPlayer].attackOffset = {
+      players[currentPlayer].mainAttackOffset = {
         x: windupDist * t,
         y: 0,
       };
     } else if (animFrames > 12) {
       // Lunge forward
       let t = (32 - animFrames) / 9;
-      players[currentPlayer].attackOffset = {
+      players[currentPlayer].mainAttackOffset = {
         x: windupDist * (1 - t) + dx * t,
         y: dy * t,
       };
     } else {
       // Return
       let t = (12 - animFrames) / 12;
-      players[currentPlayer].attackOffset = {
+      players[currentPlayer].mainAttackOffset = {
         x: dx * (1 - t),
         y: dy * (1 - t),
       };
@@ -1973,7 +2010,7 @@ function playerAttack() {
       requestAnimationFrame(anim);
     } else {
       players[currentPlayer].anim = 0;
-      players[currentPlayer].attackOffset = { x: 0, y: 0 };
+      players[currentPlayer].mainAttackOffset = { x: 0, y: 0 };
       if (currentPlayer === 0) {
         player1AttackAnim = false;
         player1AttackAnimFrame = 0;
@@ -2173,7 +2210,7 @@ function sidekickAttack() {
         // Next alive player who hasn't completed their turn
         nextPlayer();
         updateTurnIndicator();
-        attackBtn.disabled = false;
+        updateAttackButtons();
       }
     }
   }, 400);
@@ -2786,9 +2823,29 @@ function loadGameState(saveName) {
         players[i].anim = src.anim;
         players[i].barShake = src.barShake;
         players[i].attackOffset = src.attackOffset || { x: 0, y: 0 };
+        players[i].mainAttackOffset = src.mainAttackOffset || { x: 0, y: 0 };
+        players[i].sidekickAttackOffset = src.sidekickAttackOffset || {
+          x: 0,
+          y: 0,
+        };
+        players[i].specialCharge = src.specialCharge || 0;
+        players[i].specialReady = src.specialReady || false;
+        players[i].teamBuff = src.teamBuff || 0;
+        players[i].mainSpecialCharges = src.mainSpecialCharges || 2;
+        players[i].sidekickSpecialCharges = src.sidekickSpecialCharges || 2;
+        players[i].mainAttackSelected = src.mainAttackSelected || false;
+        players[i].sidekickAttackSelected = src.sidekickAttackSelected || false;
+        players[i].mainAttackType = src.mainAttackType || null;
+        players[i].sidekickAttackType = src.sidekickAttackType || null;
+        players[i].mainCharacter = src.mainCharacter;
+        players[i].sidekickCharacter = src.sidekickCharacter;
+        players[i].mainSpriteFile = src.mainSpriteFile;
+        players[i].sidekickSpriteFile = src.sidekickSpriteFile;
         players[i].spriteFile = src.spriteFile;
-        players[i].name = src.name;
+        players[i].name = src.name || "";
         players[i]._spriteImg = undefined; // re-init
+        players[i]._mainSpriteImg = undefined; // re-init
+        players[i]._sidekickSpriteImg = undefined; // re-init
       }
     }
     const bossSrc = saveData.boss;
@@ -2809,6 +2866,7 @@ function loadGameState(saveName) {
     bossFrame = saveData.bossFrame;
 
     updateTurnIndicator();
+    updateAttackButtons(); // Update attack buttons with character special attack names
     // Remove old attack button reference - no longer needed with new UI
     // attackBtn.disabled = gameState !== "player";
     draw();
@@ -3928,9 +3986,56 @@ function selectSidekickAttack(type) {
   playSound(SFX.select, 0.5);
 }
 
+// Function to get special attack name for a character
+function getSpecialAttackName(characterSprite, isMainCharacter = true) {
+  if (isMainCharacter) {
+    // Main character special attacks
+    switch (characterSprite) {
+      case "Mario_Fire.png":
+        return "Fireball";
+      case "Mario_Penguin.png":
+        return "Blizzard";
+      case "Mario_Cape.png":
+      case "Mario_Raccoon.png":
+        return "Fly";
+      case "Mario_Giant.png":
+        return "Mega stomp";
+      case "Mario_Cat.png":
+        return "Scratch";
+      default:
+        return "Special Attack";
+    }
+  } else {
+    // Sidekick special attacks
+    switch (characterSprite) {
+      case "Sidekick_Peach.png":
+        return "Healing aura";
+      case "Sidekick_Toad.png":
+        return "SCREAM!";
+      case "Sidekick_Luigi.png":
+        return "Double slap";
+      case "Sidekick_Waluigi.png":
+        return "Bomb throw";
+      case "Sidekick_Wario.png":
+        return "Fart bomb";
+      case "Sidekick_DK.png":
+        return "Double punch";
+      default:
+        return "Sidekick Attack";
+    }
+  }
+}
+
 function updateAttackButtons() {
   const player = players[currentPlayer];
   if (!player || !player.alive) return;
+
+  // Get special attack names for current player's characters
+  const mainSpecialName = getSpecialAttackName(player.mainCharacter, true);
+  const sidekickSpecialName = getSpecialAttackName(
+    player.sidekickCharacter,
+    false
+  );
 
   // Update main character buttons
   mainRegularBtn.classList.toggle(
@@ -3943,9 +4048,9 @@ function updateAttackButtons() {
   );
   mainSpecialBtn.disabled = player.mainSpecialCharges <= 0;
 
-  // Display main special charges in current/max format
+  // Display main special charges with character's special attack name
   if (player.mainSpecialCharges > 0) {
-    mainSpecialBtn.textContent = `Special Attack (${player.mainSpecialCharges}/2)`;
+    mainSpecialBtn.textContent = `${mainSpecialName} (${player.mainSpecialCharges}/2)`;
   } else {
     mainSpecialBtn.textContent = "No attacks left!";
   }
@@ -3961,9 +4066,9 @@ function updateAttackButtons() {
   );
   sidekickSpecialBtn.disabled = player.sidekickSpecialCharges <= 0;
 
-  // Display sidekick special charges in current/max format
+  // Display sidekick special charges with character's special attack name
   if (player.sidekickSpecialCharges > 0) {
-    sidekickSpecialBtn.textContent = `Special Attack (${player.sidekickSpecialCharges}/2)`;
+    sidekickSpecialBtn.textContent = `${sidekickSpecialName} (${player.sidekickSpecialCharges}/2)`;
   } else {
     sidekickSpecialBtn.textContent = "No attacks left!";
   }
@@ -4028,21 +4133,21 @@ function doMainRegularAttack() {
     if (animFrames > 21) {
       // Wind-up: move back
       let t = (48 - animFrames) / 6;
-      players[currentPlayer].attackOffset = {
+      players[currentPlayer].mainAttackOffset = {
         x: windupDist * t,
         y: 0,
       };
     } else if (animFrames > 12) {
       // Lunge forward
       let t = (32 - animFrames) / 9;
-      players[currentPlayer].attackOffset = {
+      players[currentPlayer].mainAttackOffset = {
         x: windupDist * (1 - t) + dx * t,
         y: dy * t,
       };
     } else {
       // Return
       let t = (12 - animFrames) / 12;
-      players[currentPlayer].attackOffset = {
+      players[currentPlayer].mainAttackOffset = {
         x: dx * (1 - t),
         y: dy * (1 - t),
       };
@@ -4054,7 +4159,7 @@ function doMainRegularAttack() {
       requestAnimationFrame(anim);
     } else {
       players[currentPlayer].anim = 0;
-      players[currentPlayer].attackOffset = { x: 0, y: 0 };
+      players[currentPlayer].mainAttackOffset = { x: 0, y: 0 };
       if (currentPlayer === 0) {
         player1AttackAnim = false;
         player1AttackAnimFrame = 0;
@@ -4158,50 +4263,126 @@ function doMainSpecialAttack() {
     label = "SPECIAL!";
   }
 
-  // Apply damage
-  if (damage > 0) {
-    boss.hp -= damage;
-    boss.anim = 1;
-    boss.barShake = 1.5;
-    playSound(SFX.bossHit, 0.7);
-    showFloatingDamage(bossPos.x, bossPos.y - 70, "-" + damage, color, label);
-
-    // Track damage dealt by this player's special attack
-    playerDamageDealt[currentPlayer] += damage;
+  // Start attack animation for player 1
+  if (currentPlayer === 0) {
+    player1AttackAnim = true;
+    player1AttackAnimFrame = 0;
   }
 
-  // Show effect text if any
-  if (effect) {
-    showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color, label);
-  }
+  playSound(SFX.playerAttack, 0.5);
 
-  // Use special charge
-  player.mainSpecialCharges--;
-  updateAttackButtons();
+  // Attack animation with wind-up
+  let animFrames = 48;
+  let pos = positions.players[currentPlayer];
+  let dx = (positions.boss.x - pos.x) * 0.25;
+  let dy = (positions.boss.y - pos.y) * 0.25;
+  let windupDist = -30;
 
-  setTimeout(() => {
-    boss.anim = 0;
+  let anim = () => {
+    players[currentPlayer].anim = animFrames / 48;
+
+    // Animate player 1 attack frames
+    if (currentPlayer === 0 && player1AttackAnim) {
+      if (animFrames > 32) {
+        player1AttackAnimFrame = 0;
+      } else if (animFrames > 16) {
+        player1AttackAnimFrame = Math.min(
+          PLAYER1_ATTACK_FRAMES - 1,
+          Math.floor(5 - (animFrames - 17) / 5.4)
+        );
+      } else {
+        player1AttackAnimFrame = PLAYER1_ATTACK_FRAMES - 1;
+      }
+    }
+
+    if (animFrames > 21) {
+      // Wind-up: move back
+      let t = (48 - animFrames) / 6;
+      players[currentPlayer].mainAttackOffset = {
+        x: windupDist * t,
+        y: 0,
+      };
+    } else if (animFrames > 12) {
+      // Lunge forward
+      let t = (32 - animFrames) / 9;
+      players[currentPlayer].mainAttackOffset = {
+        x: windupDist * (1 - t) + dx * t,
+        y: dy * t,
+      };
+    } else {
+      // Return
+      let t = (12 - animFrames) / 12;
+      players[currentPlayer].mainAttackOffset = {
+        x: dx * (1 - t),
+        y: dy * (1 - t),
+      };
+    }
+
     draw();
 
-    if (boss.hp <= 0) {
-      boss.hp = 0;
-      gameState = "gameover";
-      turnIndicator.textContent = "Players Win!";
-      executeAttacksBtn.disabled = true;
-      bossDeathAnim = true;
-      bossDeathFrame = 0;
-      bossDeathFrameTimer = 0;
-      bossDeathY = 0;
-      bossDeathDone = false;
-      playSound(SFX.bossDeath, 0.7);
-      gameMusic.pause();
+    if (--animFrames > 0) {
+      requestAnimationFrame(anim);
     } else {
-      // Now execute sidekick attack
+      players[currentPlayer].anim = 0;
+      players[currentPlayer].mainAttackOffset = { x: 0, y: 0 };
+      if (currentPlayer === 0) {
+        player1AttackAnim = false;
+        player1AttackAnimFrame = 0;
+      }
+
+      // Apply damage
+      if (damage > 0) {
+        boss.hp -= damage;
+        boss.anim = 1;
+        boss.barShake = 1.5;
+        playSound(SFX.bossHit, 0.7);
+        showFloatingDamage(
+          bossPos.x,
+          bossPos.y - 70,
+          "-" + damage,
+          color,
+          label
+        );
+
+        // Track damage dealt by this player's special attack
+        playerDamageDealt[currentPlayer] += damage;
+      }
+
+      // Show effect text if any
+      if (effect) {
+        showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color, label);
+      }
+
+      // Use special charge
+      player.mainSpecialCharges--;
+      updateAttackButtons();
+
       setTimeout(() => {
-        executeSidekickAttack();
+        boss.anim = 0;
+        draw();
+
+        if (boss.hp <= 0) {
+          boss.hp = 0;
+          gameState = "gameover";
+          turnIndicator.textContent = "Players Win!";
+          executeAttacksBtn.disabled = true;
+          bossDeathAnim = true;
+          bossDeathFrame = 0;
+          bossDeathFrameTimer = 0;
+          bossDeathY = 0;
+          bossDeathDone = false;
+          playSound(SFX.bossDeath, 0.7);
+          gameMusic.pause();
+        } else {
+          // Now execute sidekick attack
+          setTimeout(() => {
+            executeSidekickAttack();
+          }, 400);
+        }
       }, 400);
     }
-  }, 400);
+  };
+  anim();
 }
 
 function executeSidekickAttack() {
@@ -4218,64 +4399,110 @@ function doSidekickRegularAttack() {
   const player = players[currentPlayer];
   const positions = getCenteredPositions();
 
-  // Sidekick regular attack (same as before)
+  // Sidekick regular attack with animation
   let damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
   let color = "#4fc3f7";
   let label = "SIDEKICK!";
 
-  // Apply damage
-  boss.hp -= damage;
-  boss.anim = 1;
-  boss.barShake = 1.5;
-  playSound(SFX.bossHit, 0.7);
-  showFloatingDamage(
-    positions.boss.x,
-    positions.boss.y - 70,
-    "-" + damage,
-    color,
-    label
-  );
+  playSound(SFX.playerAttack, 0.5);
 
-  // Track damage dealt by this player's sidekick
-  playerDamageDealt[currentPlayer] += damage;
+  // Attack animation with wind-up
+  let animFrames = 48;
+  let pos = positions.players[currentPlayer];
+  let dx = (positions.boss.x - pos.x) * 0.25;
+  let dy = (positions.boss.y - pos.y) * 0.25;
+  let windupDist = -30;
 
-  setTimeout(() => {
-    boss.anim = 0;
+  let anim = () => {
+    players[currentPlayer].anim = animFrames / 48;
+
+    if (animFrames > 21) {
+      // Wind-up: move back
+      let t = (48 - animFrames) / 6;
+      players[currentPlayer].sidekickAttackOffset = {
+        x: windupDist * t,
+        y: 0,
+      };
+    } else if (animFrames > 12) {
+      // Lunge forward
+      let t = (32 - animFrames) / 9;
+      players[currentPlayer].sidekickAttackOffset = {
+        x: windupDist * (1 - t) + dx * t,
+        y: dy * t,
+      };
+    } else {
+      // Return
+      let t = (12 - animFrames) / 12;
+      players[currentPlayer].sidekickAttackOffset = {
+        x: dx * (1 - t),
+        y: dy * (1 - t),
+      };
+    }
+
     draw();
 
-    if (boss.hp <= 0) {
-      boss.hp = 0;
-      gameState = "gameover";
-      turnIndicator.textContent = "";
-      executeAttacksBtn.disabled = true;
-      bossDeathAnim = true;
-      bossDeathFrame = 0;
-      bossDeathFrameTimer = 0;
-      bossDeathY = 0;
-      bossDeathDone = false;
-      playSound(SFX.bossDeath, 0.7);
-      gameMusic.pause();
+    if (--animFrames > 0) {
+      requestAnimationFrame(anim);
     } else {
-      // Mark this player as having completed their turn
-      playersThisRound.push(currentPlayer);
+      players[currentPlayer].anim = 0;
+      players[currentPlayer].sidekickAttackOffset = { x: 0, y: 0 };
 
-      // Check if all alive players have completed their turns
-      const alivePlayers = players
-        .map((p, i) => (p.alive ? i : null))
-        .filter((i) => i !== null);
+      // Apply damage
+      boss.hp -= damage;
+      boss.anim = 1;
+      boss.barShake = 1.5;
+      playSound(SFX.bossHit, 0.7);
+      showFloatingDamage(
+        positions.boss.x,
+        positions.boss.y - 70,
+        "-" + damage,
+        color,
+        label
+      );
 
-      if (playersThisRound.length >= alivePlayers.length) {
-        // All players have completed their turns, boss's turn
-        gameState = "boss";
-        setTimeout(bossAttack, 800);
-      } else {
-        // Next alive player who hasn't completed their turn
-        nextPlayer();
-        updateTurnIndicator();
-        updateAttackButtons();
-      }
+      // Track damage dealt by this player's sidekick
+      playerDamageDealt[currentPlayer] += damage;
+
+      setTimeout(() => {
+        boss.anim = 0;
+        draw();
+
+        if (boss.hp <= 0) {
+          boss.hp = 0;
+          gameState = "gameover";
+          turnIndicator.textContent = "";
+          executeAttacksBtn.disabled = true;
+          bossDeathAnim = true;
+          bossDeathFrame = 0;
+          bossDeathFrameTimer = 0;
+          bossDeathY = 0;
+          bossDeathDone = false;
+          playSound(SFX.bossDeath, 0.7);
+          gameMusic.pause();
+        } else {
+          // Mark this player as having completed their turn
+          playersThisRound.push(currentPlayer);
+
+          // Check if all alive players have completed their turns
+          const alivePlayers = players
+            .map((p, i) => (p.alive ? i : null))
+            .filter((i) => i !== null);
+
+          if (playersThisRound.length >= alivePlayers.length) {
+            // All players have completed their turns, boss's turn
+            gameState = "boss";
+            setTimeout(bossAttack, 800);
+          } else {
+            // Next alive player who hasn't completed their turn
+            nextPlayer();
+            updateTurnIndicator();
+            updateAttackButtons();
+          }
+        }
+      }, 400);
     }
-  }, 400);
+  };
+  anim();
 }
 
 function doSidekickSpecialAttack() {
@@ -4361,76 +4588,146 @@ function doSidekickSpecialAttack() {
     label = "SIDEKICK!";
   }
 
-  // Apply damage if not Peach/Toad
-  if (damage > 0) {
-    boss.hp -= damage;
-    boss.anim = 1;
-    boss.barShake = 1.5;
-    playSound(SFX.bossHit, 0.7);
-    showFloatingDamage(
-      positions.boss.x,
-      positions.boss.y - 70,
-      "-" + damage,
-      color,
-      label
-    );
-
-    // Track damage dealt by this player's sidekick
-    playerDamageDealt[currentPlayer] += damage;
+  // Start attack animation for player 1 (if it's player 1's sidekick)
+  if (currentPlayer === 0) {
+    player1AttackAnim = true;
+    player1AttackAnimFrame = 0;
   }
 
-  // Show effect text if any
-  if (effect) {
-    showFloatingDamage(
-      positions.boss.x,
-      positions.boss.y - 120,
-      effect,
-      color,
-      label
-    );
-  }
+  playSound(SFX.playerAttack, 0.5);
 
-  // Use special charge
-  player.sidekickSpecialCharges--;
-  updateAttackButtons();
+  // Attack animation with wind-up
+  let animFrames = 48;
+  let pos = positions.players[currentPlayer];
+  let dx = (positions.boss.x - pos.x) * 0.25;
+  let dy = (positions.boss.y - pos.y) * 0.25;
+  let windupDist = -30;
 
-  setTimeout(() => {
-    boss.anim = 0;
-    draw();
+  let anim = () => {
+    players[currentPlayer].anim = animFrames / 48;
 
-    if (boss.hp <= 0) {
-      boss.hp = 0;
-      gameState = "gameover";
-      turnIndicator.textContent = "";
-      executeAttacksBtn.disabled = true;
-      bossDeathAnim = true;
-      bossDeathFrame = 0;
-      bossDeathFrameTimer = 0;
-      bossDeathY = 0;
-      bossDeathDone = false;
-      playSound(SFX.bossDeath, 0.7);
-      gameMusic.pause();
-    } else {
-      // Mark this player as having completed their turn
-      playersThisRound.push(currentPlayer);
-
-      // Check if all alive players have completed their turns
-      const alivePlayers = players
-        .map((p, i) => (p.alive ? i : null))
-        .filter((i) => i !== null);
-
-      if (playersThisRound.length >= alivePlayers.length) {
-        // All players have completed their turns, boss's turn
-        gameState = "boss";
-        setTimeout(bossAttack, 800);
+    // Animate player 1 attack frames
+    if (currentPlayer === 0 && player1AttackAnim) {
+      if (animFrames > 32) {
+        player1AttackAnimFrame = 0;
+      } else if (animFrames > 16) {
+        player1AttackAnimFrame = Math.min(
+          PLAYER1_ATTACK_FRAMES - 1,
+          Math.floor(5 - (animFrames - 17) / 5.4)
+        );
       } else {
-        // Next alive player who hasn't completed their turn
-        nextPlayer();
-        updateTurnIndicator();
-        updateAttackButtons();
+        player1AttackAnimFrame = PLAYER1_ATTACK_FRAMES - 1;
       }
     }
-  }, 400);
+
+    if (animFrames > 21) {
+      // Wind-up: move back
+      let t = (48 - animFrames) / 6;
+      players[currentPlayer].sidekickAttackOffset = {
+        x: windupDist * t,
+        y: 0,
+      };
+    } else if (animFrames > 12) {
+      // Lunge forward
+      let t = (32 - animFrames) / 9;
+      players[currentPlayer].sidekickAttackOffset = {
+        x: windupDist * (1 - t) + dx * t,
+        y: dy * t,
+      };
+    } else {
+      // Return
+      let t = (12 - animFrames) / 12;
+      players[currentPlayer].sidekickAttackOffset = {
+        x: dx * (1 - t),
+        y: dy * (1 - t),
+      };
+    }
+
+    draw();
+
+    if (--animFrames > 0) {
+      requestAnimationFrame(anim);
+    } else {
+      players[currentPlayer].anim = 0;
+      players[currentPlayer].sidekickAttackOffset = { x: 0, y: 0 };
+      if (currentPlayer === 0) {
+        player1AttackAnim = false;
+        player1AttackAnimFrame = 0;
+      }
+
+      // Apply damage if not Peach/Toad
+      if (damage > 0) {
+        boss.hp -= damage;
+        boss.anim = 1;
+        boss.barShake = 1.5;
+        playSound(SFX.bossHit, 0.7);
+        showFloatingDamage(
+          positions.boss.x,
+          positions.boss.y - 70,
+          "-" + damage,
+          color,
+          label
+        );
+
+        // Track damage dealt by this player's sidekick
+        playerDamageDealt[currentPlayer] += damage;
+      }
+
+      // Show effect text if any
+      if (effect) {
+        showFloatingDamage(
+          positions.boss.x,
+          positions.boss.y - 120,
+          effect,
+          color,
+          label
+        );
+      }
+
+      // Use special charge
+      player.sidekickSpecialCharges--;
+      updateAttackButtons();
+
+      setTimeout(() => {
+        boss.anim = 0;
+        draw();
+
+        if (boss.hp <= 0) {
+          boss.hp = 0;
+          gameState = "gameover";
+          turnIndicator.textContent = "";
+          executeAttacksBtn.disabled = true;
+          bossDeathAnim = true;
+          bossDeathFrame = 0;
+          bossDeathFrameTimer = 0;
+          bossDeathY = 0;
+          bossDeathDone = false;
+          playSound(SFX.bossDeath, 0.7);
+          gameMusic.pause();
+        } else {
+          // Mark this player as having completed their turn
+          playersThisRound.push(currentPlayer);
+
+          // Check if all alive players have completed their turns
+          const alivePlayers = players
+            .map((p, i) => (p.alive ? i : null))
+            .filter((i) => i !== null);
+
+          if (playersThisRound.length >= alivePlayers.length) {
+            // All players have completed their turns, boss's turn
+            gameState = "boss";
+            setTimeout(bossAttack, 800);
+          } else {
+            // Next alive player who hasn't completed their turn
+            nextPlayer();
+            updateTurnIndicator();
+            updateAttackButtons();
+          }
+        }
+      }, 400);
+    }
+  };
+  anim();
 }
 
 // Add event listeners for new attack selection UI
