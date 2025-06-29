@@ -17,7 +17,6 @@
       <div id="title-text">Click to start</div>
     </div>
     <div id="character-select-screen">
-      <button id="return-main-menu" class="snes-btn">Menu</button>
       <h2>Select 4 Character Pairs</h2>
       <p
         style="
@@ -35,8 +34,8 @@
         <div id="selected-characters"></div>
       </div>
       <div id="character-select-controls">
-        <button id="load-save-select">Load save</button>
-        <button id="start-fight" disabled>Start fight</button>
+        <button id="load-save-select" class="snes-btn">Load save</button>
+        <button id="start-fight" class="snes-btn" disabled>Start fight</button>
         <div id="music-controls-select"></div>
       </div>
     </div>
@@ -47,23 +46,29 @@
         <div id="attack-selection">
           <div id="main-attack-buttons">
             <h4>Main Character</h4>
-            <button id="main-regular-btn" class="attack-btn">
+            <button id="main-regular-btn" class="snes-btn attack-btn">
               Regular Attack
             </button>
-            <button id="main-special-btn" class="attack-btn" disabled>
+            <button id="main-special-btn" class="snes-btn attack-btn" disabled>
               Special Attack (1)
             </button>
           </div>
           <div id="sidekick-attack-buttons">
             <h4>Sidekick</h4>
-            <button id="sidekick-regular-btn" class="attack-btn">
+            <button id="sidekick-regular-btn" class="snes-btn attack-btn">
               Regular Attack
             </button>
-            <button id="sidekick-special-btn" class="attack-btn" disabled>
+            <button
+              id="sidekick-special-btn"
+              class="snes-btn attack-btn"
+              disabled
+            >
               Special Attack (1)
             </button>
           </div>
-          <button id="execute-attacks-btn" disabled>Execute Attacks!</button>
+          <button id="execute-attacks-btn" class="snes-btn" disabled>
+            Execute Attacks!
+          </button>
         </div>
         <div id="audio-controls">
           <input
@@ -74,7 +79,7 @@
             step="0.01"
             value="0.5"
           />
-          <button id="music-mute" title="Mute/Unmute" style="margin-left: 8px">
+          <button id="music-mute" class="snes-btn" title="Mute/Unmute">
             🔊
           </button>
         </div>
@@ -99,8 +104,8 @@
           >
           <div id="save-slots-save"></div>
           <div class="modal-buttons">
-            <button id="confirm-save">Save</button>
-            <button id="close-modal">Close</button>
+            <button id="confirm-save" class="snes-btn">Save</button>
+            <button id="close-modal" class="snes-btn">Close</button>
           </div>
         </div>
         <div id="load-section">
@@ -116,8 +121,8 @@
           will be lost.
         </p>
         <div class="modal-buttons">
-          <button id="confirm-yes">Yes</button>
-          <button id="confirm-no">No</button>
+          <button id="confirm-yes" class="snes-btn">Yes</button>
+          <button id="confirm-no" class="snes-btn">No</button>
         </div>
       </div>
     </div>
