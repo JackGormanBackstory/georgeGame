@@ -28,10 +28,10 @@ const turnIndicator = document.getElementById("turn-indicator");
 const PLAYER_COLORS = ["#4fc3f7", "#81c784", "#ffd54f", "#e57373"];
 const BOSS_COLOR = "#b39ddb";
 const PLAYER_POSITIONS = [
-  { x: 200, y: 650 }, // Player 1 - positioned for equal edge distance
-  { x: 533, y: 650 }, // Player 2 - 333px spacing
-  { x: 866, y: 650 }, // Player 3 - 333px spacing
-  { x: 1200, y: 650 }, // Player 4 - positioned for equal edge distance
+  { x: 200, y: 620 }, // Player 1 - positioned for equal edge distance
+  { x: 533, y: 620 }, // Player 2 - 333px spacing
+  { x: 866, y: 620 }, // Player 3 - 333px spacing
+  { x: 1200, y: 620 }, // Player 4 - positioned for equal edge distance
 ];
 const BOSS_POSITION = { x: 400, y: 420 };
 
@@ -1355,8 +1355,8 @@ function draw() {
       }
 
       // Draw character pair (main + sidekick)
-      const SPRITE_SIZE = 80; // Smaller size to fit both characters
-      const SIDEKICK_SIZE = 60; // Even smaller for sidekick
+      const SPRITE_SIZE = 120; // Match character select screen size
+      const SIDEKICK_SIZE = 120; // Match character select screen size
       const PAIR_SPACING = 120; // Increased spacing between main and sidekick
 
       // Draw main character with individual offset
@@ -1406,11 +1406,11 @@ function draw() {
 
           // Special sizing for certain characters
           if (p.mainCharacter === "Mario_Fire.png") {
-            drawW = 100;
-            drawH = 100;
+            drawW = 140;
+            drawH = 140;
           } else if (p.mainCharacter === "Mario_Giant.png") {
-            drawW = 120;
-            drawH = 120;
+            drawW = 160;
+            drawH = 160;
           }
 
           if (!p.alive) {
@@ -1425,13 +1425,27 @@ function draw() {
             y: basePos.y + yOffset + (p.mainAttackOffset?.y || 0),
           };
 
-          ctx.drawImage(
-            mainImg,
-            mainPos.x - drawW / 2,
-            mainPos.y - drawH / 2,
-            drawW,
-            drawH
-          );
+          // Flip sprites horizontally for players 3 and 4 (indices 2 and 3)
+          if (i >= 2) {
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(
+              mainImg,
+              -mainPos.x - drawW / 2,
+              mainPos.y - drawH / 2,
+              drawW,
+              drawH
+            );
+            ctx.restore();
+          } else {
+            ctx.drawImage(
+              mainImg,
+              mainPos.x - drawW / 2,
+              mainPos.y - drawH / 2,
+              drawW,
+              drawH
+            );
+          }
 
           if (!p.alive) {
             ctx.globalAlpha = 1;
@@ -1503,8 +1517,8 @@ function draw() {
 
           // Special sizing for certain sidekicks
           if (p.sidekickCharacter === "Sidekick_DK.png") {
-            drawW = 80;
-            drawH = 80;
+            drawW = 120;
+            drawH = 120;
           }
 
           if (!p.alive) {
@@ -1519,13 +1533,27 @@ function draw() {
             y: basePos.y + yOffset + (p.sidekickAttackOffset?.y || 0),
           };
 
-          ctx.drawImage(
-            sidekickImg,
-            sidekickPos.x - drawW / 2,
-            sidekickPos.y - drawH / 2,
-            drawW,
-            drawH
-          );
+          // Flip sprites horizontally for players 3 and 4 (indices 2 and 3)
+          if (i >= 2) {
+            ctx.save();
+            ctx.scale(-1, 1);
+            ctx.drawImage(
+              sidekickImg,
+              -sidekickPos.x - drawW / 2,
+              sidekickPos.y - drawH / 2,
+              drawW,
+              drawH
+            );
+            ctx.restore();
+          } else {
+            ctx.drawImage(
+              sidekickImg,
+              sidekickPos.x - drawW / 2,
+              sidekickPos.y - drawH / 2,
+              drawW,
+              drawH
+            );
+          }
 
           if (!p.alive) {
             ctx.globalAlpha = 1;
@@ -1665,19 +1693,28 @@ function draw() {
           p._mainSpriteImg = mainImg;
         }
 
-        let mainDrawW = 80,
-          mainDrawH = 80;
+        let mainDrawW = 120,
+          mainDrawH = 120;
         if (mainImg.naturalWidth && mainImg.naturalHeight) {
           const aspect = mainImg.naturalWidth / mainImg.naturalHeight;
           if (aspect > 1) {
             // Wider than tall - fit to width
-            mainDrawW = 80;
-            mainDrawH = 80 / aspect;
+            mainDrawW = 120;
+            mainDrawH = 120 / aspect;
           } else {
             // Taller than wide - fit to height
-            mainDrawH = 80;
-            mainDrawW = 80 * aspect;
+            mainDrawH = 120;
+            mainDrawW = 120 * aspect;
           }
+        }
+
+        // Special sizing for certain characters
+        if (p.mainCharacter === "Mario_Fire.png") {
+          mainDrawW = 140;
+          mainDrawH = 140;
+        } else if (p.mainCharacter === "Mario_Giant.png") {
+          mainDrawW = 160;
+          mainDrawH = 160;
         }
 
         ctx.save();
@@ -1690,6 +1727,29 @@ function draw() {
           mainDrawH
         );
         ctx.restore();
+
+        // Flip sprites horizontally for players 3 and 4 (indices 2 and 3)
+        if (i >= 2) {
+          ctx.save();
+          ctx.translate(playerX, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            mainImg,
+            -mainDrawW / 2 - 30,
+            midY - mainDrawH / 2,
+            mainDrawW,
+            mainDrawH
+          );
+          ctx.restore();
+        } else {
+          ctx.drawImage(
+            mainImg,
+            playerX - mainDrawW / 2 - 30,
+            midY - mainDrawH / 2,
+            mainDrawW,
+            mainDrawH
+          );
+        }
       }
 
       // Draw sidekick sprite
@@ -1701,19 +1761,25 @@ function draw() {
           p._sidekickSpriteImg = sidekickImg;
         }
 
-        let sidekickDrawW = 80,
-          sidekickDrawH = 80;
+        let sidekickDrawW = 120,
+          sidekickDrawH = 120;
         if (sidekickImg.naturalWidth && sidekickImg.naturalHeight) {
           const aspect = sidekickImg.naturalWidth / sidekickImg.naturalHeight;
           if (aspect > 1) {
             // Wider than tall - fit to width
-            sidekickDrawW = 80;
-            sidekickDrawH = 80 / aspect;
+            sidekickDrawW = 120;
+            sidekickDrawH = 120 / aspect;
           } else {
             // Taller than wide - fit to height
-            sidekickDrawH = 80;
-            sidekickDrawW = 80 * aspect;
+            sidekickDrawH = 120;
+            sidekickDrawW = 120 * aspect;
           }
+        }
+
+        // Special sizing for certain sidekicks
+        if (p.sidekickCharacter === "Sidekick_DK.png") {
+          sidekickDrawW = 120;
+          sidekickDrawH = 120;
         }
 
         ctx.save();
@@ -1726,6 +1792,29 @@ function draw() {
           sidekickDrawH
         );
         ctx.restore();
+
+        // Flip sprites horizontally for players 3 and 4 (indices 2 and 3)
+        if (i >= 2) {
+          ctx.save();
+          ctx.translate(playerX, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            sidekickImg,
+            -sidekickDrawW / 2 + 30,
+            midY - sidekickDrawH / 2,
+            sidekickDrawW,
+            sidekickDrawH
+          );
+          ctx.restore();
+        } else {
+          ctx.drawImage(
+            sidekickImg,
+            playerX - sidekickDrawW / 2 + 30,
+            midY - sidekickDrawH / 2,
+            sidekickDrawW,
+            sidekickDrawH
+          );
+        }
       }
 
       // Draw player name
