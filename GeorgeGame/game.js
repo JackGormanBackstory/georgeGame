@@ -1270,6 +1270,10 @@ function draw() {
     bossBarX + bossBarW - 12,
     bossBarY + bossBarH / 2
   );
+
+  // Draw status effect icons to the right of the health bar
+  drawStatusEffectIcons(bossBarX + bossBarW + 8, bossBarY, boss.statusEffects);
+
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
   ctx.restore();
   // Boss Name (large, under health bar)
@@ -4798,3 +4802,73 @@ if (executeAttacksBtn)
 
 // Initialize attack buttons for first player
 updateAttackButtons();
+
+function drawStatusEffectIcons(x, y, statusEffects) {
+  const iconSize = 24;
+  const iconSpacing = 8;
+  let currentX = x;
+
+  // Draw each active status effect
+  Object.entries(statusEffects).forEach(([effect, data]) => {
+    if (data && data.turns > 0) {
+      ctx.save();
+
+      // Draw icon background
+      ctx.fillStyle = "#333";
+      ctx.fillRect(currentX, y, iconSize, iconSize);
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(currentX, y, iconSize, iconSize);
+
+      // Draw effect-specific icon
+      ctx.fillStyle = "#fff";
+      ctx.font = `${iconSize * 0.6}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      let icon = "";
+      let color = "#fff";
+
+      switch (effect) {
+        case "burn":
+          icon = "🔥";
+          color = "#ff5722";
+          break;
+        case "freeze":
+          icon = "❄️";
+          color = "#00e5ff";
+          break;
+        case "poison":
+          icon = "☠️";
+          color = "#8bc34a";
+          break;
+        case "bleed":
+          icon = "💉";
+          color = "#ffb300";
+          break;
+        case "distract":
+          icon = "💫";
+          color = "#fff";
+          break;
+        default:
+          icon = "⚡";
+      }
+
+      ctx.fillStyle = color;
+      ctx.fillText(icon, currentX + iconSize / 2, y + iconSize / 2);
+
+      // Draw turn counter
+      ctx.fillStyle = "#fff";
+      ctx.font = `${iconSize * 0.4}px sans-serif`;
+      ctx.fillText(
+        data.turns.toString(),
+        currentX + iconSize / 2,
+        y + iconSize - 4
+      );
+
+      ctx.restore();
+
+      currentX += iconSize + iconSpacing;
+    }
+  });
+}
