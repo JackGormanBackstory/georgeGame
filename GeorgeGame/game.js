@@ -2288,7 +2288,7 @@ function sidekickAttack() {
     color = "#8bc34a";
     label = "POISON!";
     if (!boss.statusEffects.poison) {
-      boss.statusEffects.poison = { turns: 3 };
+      boss.statusEffects.poison = { permanent: true };
       effect = "Poison applied!";
     }
   } else if (sidekickName === "Sidekick_DK.png") {
@@ -2449,9 +2449,12 @@ function bossAttack() {
       effect.color,
       effect.label
     );
-    boss.statusEffects[effect.type].turns--;
-    if (boss.statusEffects[effect.type].turns <= 0)
-      delete boss.statusEffects[effect.type];
+    // Only decrement turns for non-permanent effects
+    if (!boss.statusEffects[effect.type].permanent) {
+      boss.statusEffects[effect.type].turns--;
+      if (boss.statusEffects[effect.type].turns <= 0)
+        delete boss.statusEffects[effect.type];
+    }
     draw();
   }
 
@@ -4276,7 +4279,7 @@ function doMainSpecialAttack() {
     color = "#ff5722";
     label = "BURN!";
     if (!boss.statusEffects.burn) {
-      boss.statusEffects.burn = { turns: 3 };
+      boss.statusEffects.burn = { permanent: true };
       effect = "Burn applied!";
     }
   } else if (mainChar === "Mario_Penguin.png") {
@@ -4308,7 +4311,7 @@ function doMainSpecialAttack() {
     color = "#ffb300";
     label = "BLEED!";
     if (!boss.statusEffects.bleed) {
-      boss.statusEffects.bleed = { turns: 3 };
+      boss.statusEffects.bleed = { permanent: true };
       effect = "Bleed applied!";
     }
   } else {
@@ -4628,7 +4631,7 @@ function doSidekickSpecialAttack() {
     color = "#8bc34a";
     label = "POISON!";
     if (!boss.statusEffects.poison) {
-      boss.statusEffects.poison = { turns: 3 };
+      boss.statusEffects.poison = { permanent: true };
       effect = "Poison applied!";
     }
   } else if (sidekickName === "Sidekick_DK.png") {
@@ -4810,7 +4813,7 @@ function drawStatusEffectIcons(x, y, statusEffects) {
 
   // Draw each active status effect
   Object.entries(statusEffects).forEach(([effect, data]) => {
-    if (data && data.turns > 0) {
+    if (data && (data.turns > 0 || data.permanent)) {
       ctx.save();
 
       // Draw icon background
