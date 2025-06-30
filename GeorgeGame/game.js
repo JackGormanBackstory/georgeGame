@@ -27,12 +27,6 @@ const turnIndicator = document.getElementById("turn-indicator");
 
 const PLAYER_COLORS = ["#4fc3f7", "#81c784", "#ffd54f", "#e57373"];
 const BOSS_COLOR = "#b39ddb";
-const PLAYER_POSITIONS = [
-  { x: 200, y: 620 }, // Player 1 - positioned for equal edge distance
-  { x: 533, y: 620 }, // Player 2 - 333px spacing
-  { x: 866, y: 620 }, // Player 3 - 333px spacing
-  { x: 1200, y: 620 }, // Player 4 - positioned for equal edge distance
-];
 const BOSS_POSITION = { x: 400, y: 420 };
 
 const PLAYER_MAX_HP = 30;
@@ -271,8 +265,21 @@ function updateClouds() {
 function resizeCanvas() {
   // Set a larger max width, e.g., 1600px
   const maxWidth = 1800;
-  canvas.width = Math.min(window.innerWidth, maxWidth);
-  canvas.height = window.innerHeight;
+  const targetWidth = Math.min(window.innerWidth, maxWidth);
+  const targetHeight = window.innerHeight;
+
+  // Set the canvas size to match the target dimensions
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  // Center the canvas horizontally if it's smaller than the viewport
+  if (targetWidth < window.innerWidth) {
+    const margin = (window.innerWidth - targetWidth) / 2;
+    canvas.style.marginLeft = margin + "px";
+  } else {
+    canvas.style.marginLeft = "0px";
+  }
+
   draw();
 }
 window.addEventListener("resize", resizeCanvas);
@@ -281,10 +288,37 @@ resizeCanvas();
 function getCenteredPositions() {
   const centerX = canvas.width / 2;
   const bossY = canvas.height / 2 - 40;
-  // Use PLAYER_POSITIONS for player positions
+
+  // Calculate UI position
+  const uiElement = document.getElementById("ui");
+  let uiTop = canvas.height; // Default to bottom if UI not found
+
+  if (uiElement) {
+    const uiRect = uiElement.getBoundingClientRect();
+    const canvasRect = canvas.getBoundingClientRect();
+    uiTop = uiRect.top - canvasRect.top; // UI's top position relative to canvas
+  }
+
+  // Position sprites 48px above the UI
+  const spriteY = uiTop - 108;
+
+  // Calculate centered player positions
+  const totalPlayers = 4;
+  const playerSpacing = 333; // Space between each player
+  const totalWidth = (totalPlayers - 1) * playerSpacing; // Total width of all players
+  const startX = centerX - totalWidth / 2; // Start position to center the group
+
+  const playerPositions = [];
+  for (let i = 0; i < totalPlayers; i++) {
+    playerPositions.push({
+      x: startX + i * playerSpacing,
+      y: spriteY,
+    });
+  }
+
   return {
     boss: { x: centerX, y: bossY },
-    players: PLAYER_POSITIONS.map((pos) => ({ x: pos.x, y: pos.y })),
+    players: playerPositions,
   };
 }
 
