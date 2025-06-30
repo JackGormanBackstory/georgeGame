@@ -2319,13 +2319,7 @@ function sidekickAttack() {
 
   // Show effect text if any
   if (effect) {
-    showFloatingDamage(
-      positions.boss.x,
-      positions.boss.y - 120,
-      effect,
-      color,
-      label
-    );
+    showFloatingDamage(positions.boss.x, positions.boss.y - 120, effect, color);
   }
 
   // Mark sidekick as having attacked
@@ -3546,120 +3540,10 @@ if (musicMuteBtn) {
   }, 500);
 }
 
-// --- Special Attack Logic ---
-function doSpecialAttack(idx) {
-  const p = players[idx];
-  const positions = getCenteredPositions();
-  let bossPos = positions.boss;
-  let damage = 0;
-  let color = "#fff";
-  let label = "SPECIAL!";
-  let effect = null;
-
-  // Determine special by main character sprite file
-  const mainChar = p.mainCharacter;
-
-  if (mainChar === "Mario_Fire.png") {
-    // Fire Mario: normal rng + burn
-    damage = Math.floor(Math.random() * 6) + 1 + p.teamBuff;
-    color = "#ff5722";
-    label = "BURN!";
-    if (!boss.statusEffects.burn) {
-      boss.statusEffects.burn = { turns: 3 };
-      effect = "Burn applied!";
-    }
-  } else if (mainChar === "Mario_Penguin.png") {
-    // Penguin Mario: normal rng + freeze
-    damage = Math.floor(Math.random() * 6) + 1 + p.teamBuff;
-    color = "#00e5ff";
-    label = "FREEZE!";
-    if (!boss.statusEffects.freeze) {
-      boss.statusEffects.freeze = { turns: 1 };
-      effect = "Boss frozen!";
-    }
-  } else if (
-    mainChar === "Mario_Cape.png" ||
-    mainChar === "Mario_Raccoon.png"
-  ) {
-    // Flying Mario: 7 damage
-    damage = 7 + p.teamBuff;
-    color = "#ffd600";
-    label = "CRIT!";
-  } else if (mainChar === "Mario_Giant.png") {
-    // Giant Mario: double normal, shake
-    damage = (Math.floor(Math.random() * 6) + 1 + p.teamBuff) * 2;
-    color = "#bdbdbd";
-    label = "SMASH!";
-    triggerScreenShake();
-  } else if (mainChar === "Mario_Cat.png") {
-    // Cat Mario: choose one (for now, always Bleed)
-    damage = Math.floor(Math.random() * 6) + 1 + p.teamBuff;
-    color = "#ffb300";
-    label = "BLEED!";
-    if (!boss.statusEffects.bleed) {
-      boss.statusEffects.bleed = { turns: 3 };
-      effect = "Bleed applied!";
-    }
-  } else {
-    // Default: 7 damage
-    damage = 7 + p.teamBuff;
-    color = "#fff";
-    label = "SPECIAL!";
-  }
-
-  // Apply damage
-  if (damage > 0) {
-    boss.hp -= damage;
-    boss.anim = 1;
-    boss.barShake = 1.5;
-    playSound(SFX.bossHit, 0.7);
-    showFloatingDamage(bossPos.x, bossPos.y - 70, "-" + damage, color, label);
-
-    // Track damage dealt by this player's special attack
-    playerDamageDealt[idx] += damage;
-  }
-
-  // Show effect text if any
-  if (effect) {
-    showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color, label);
-  }
-
-  // Reset special charge
-  p.specialCharge = 0;
-  p.specialReady = false;
-
-  setTimeout(() => {
-    boss.anim = 0;
-    draw();
-
-    if (boss.hp <= 0) {
-      boss.hp = 0;
-      gameState = "gameover";
-      turnIndicator.textContent = "Players Win!";
-      bossDeathAnim = true;
-      bossDeathFrame = 0;
-      bossDeathFrameTimer = 0;
-      bossDeathY = 0;
-      bossDeathDone = false;
-      playSound(SFX.bossDeath, 0.7);
-      gameMusic.pause();
-    } else {
-      // Mark main character as having attacked
-      players[currentPlayer].hasAttackedThisTurn = true;
-
-      // Now sidekick attacks automatically
-      setTimeout(() => {
-        sidekickAttack();
-      }, 400);
-    }
-  }, 400);
-}
-
 function createDragImage(file, fallbackImg) {
   // Use fallback image directly since drag images don't exist
   return fallbackImg;
 }
-
 function makeSpriteOptionDraggable(opt, idx, file, type, isSelected) {
   if (isSelected) {
     opt.removeAttribute("draggable");
@@ -4517,7 +4401,7 @@ function doMainSpecialAttack() {
 
       // Show effect text if any
       if (effect) {
-        showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color, label);
+        showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color);
       }
 
       // Use special charge
@@ -4720,7 +4604,7 @@ function doSidekickSpecialAttack() {
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     let damage2 = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#66bb6a";
-    label = "DOUBLE!";
+    label = "DOUBLE KICK!";
     boss.hp -= damage2;
     showFloatingDamage(
       positions.boss.x,
@@ -4846,8 +4730,7 @@ function doSidekickSpecialAttack() {
           positions.boss.x,
           positions.boss.y - 120,
           effect,
-          color,
-          label
+          color
         );
       }
 
