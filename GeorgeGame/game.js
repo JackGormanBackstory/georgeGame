@@ -564,6 +564,9 @@ function showCharacterSelect() {
   selectedSprites = [];
   selectedNames = [];
 
+  // Reset all animations and game state
+  resetAllAnimations();
+
   // Clear and set up the grid
   const grid = document.getElementById("sprite-grid");
   grid.innerHTML = "";
@@ -1681,14 +1684,19 @@ function draw() {
       );
 
       // Player name (positioned above the character pair)
+      ctx.save();
       ctx.fillStyle = "#fff";
-      ctx.font = "16px sans-serif";
+      ctx.font = 'bold 28px "Press Start 2P", monospace, sans-serif';
       ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 8;
       ctx.fillText(
         p.name || `P${i + 1}`,
         basePos.x,
         basePos.y - SPRITE_SIZE / 2 - 15
       );
+      ctx.restore();
     });
   }
 
@@ -1952,6 +1960,10 @@ function draw() {
         boss.displayHp = BOSS_MAX_HP;
         // Reset damage tracking
         playerDamageDealt = [0, 0, 0, 0];
+
+        // Reset all animations and game state
+        resetAllAnimations();
+
         // Show UI again
         const ui = document.getElementById("ui");
         if (ui) ui.style.display = "";
@@ -2895,58 +2907,18 @@ function restartGame() {
     p.hp = PLAYER_MAX_HP;
     p.displayHp = PLAYER_MAX_HP;
     p.alive = true;
-    p.anim = 0;
-    p.barShake = 0;
-    p.attackOffset = { x: 0, y: 0 };
   });
   // Reset boss
   boss.hp = BOSS_MAX_HP;
   boss.displayHp = BOSS_MAX_HP;
   boss.alive = true;
-  boss.anim = 0;
-  boss.barShake = 0;
-  boss.attackOffset = { x: 0, y: 0 };
-  bossDeathAnim = false;
-  bossDeathFrame = 0;
-  bossDeathFrameTimer = 0;
-  bossDeathY = 0;
-  bossDeathDone = false;
-  showWinScreen = false;
-  winScreenTimer = 0;
-  fireworks = [];
-  // Reset damage tracking
-  playerDamageDealt = [0, 0, 0, 0];
-  // Reset turn and state
-  currentPlayer = 0;
-  gameState = "player";
-  playersThisRound = [];
+
+  // Reset all animations and game state
+  resetAllAnimations();
+
   updateTurnIndicator();
   // Remove old attack button reference - no longer needed with new UI
   // attackBtn.disabled = false;
-  // Reset player 1 animation
-  player1Frame = 0;
-  player1AttackAnim = false;
-  player1AttackAnimFrame = 0;
-  // Reset boss animation
-  bossFrame = 0;
-  bossAttackAnim = false;
-  bossAttackAnimFrame = 0;
-  bossIdleFrame = 0;
-  bossIdleFrameTimer = 0;
-  // Reset special attack states
-  players.forEach((p) => {
-    p.specialCharge = 0;
-    p.specialReady = false;
-    p.hasAttackedThisTurn = false;
-    p.sidekickHasAttackedThisTurn = false;
-    // Reset new attack cycle properties
-    p.mainSpecialCharges = 2;
-    p.sidekickSpecialCharges = 2;
-    p.mainAttackSelected = false;
-    p.sidekickAttackSelected = false;
-    p.mainAttackType = null;
-    p.sidekickAttackType = null;
-  });
   // Show UI again
   const ui = document.getElementById("ui");
   if (ui) ui.style.display = "";
@@ -2957,18 +2929,6 @@ function restartGame() {
   if (turnIndicatorElem) turnIndicatorElem.style.display = "";
   // Update attack buttons
   updateAttackButtons();
-  // Clear special attack animations
-  specialProjectiles = [];
-  specialEffects = [];
-  fireballProjectiles = [];
-  blizzardProjectiles = [];
-  scratchProjectiles = [];
-  bombProjectiles = [];
-  flyingProjectiles = [];
-  giantStompEffects = [];
-  basicSpecialProjectiles = [];
-  healAuras = [];
-  buffAuras = [];
   draw();
 }
 
@@ -3005,6 +2965,9 @@ function loadGameState(saveName) {
   const saveData = saves[saveName];
 
   if (saveData) {
+    // Reset all animations first to ensure clean state
+    resetAllAnimations();
+
     // Always reset players and boss to a clean state
     for (let i = 0; i < 4; i++) {
       players[i] = {
@@ -3238,6 +3201,7 @@ document.getElementById("confirm-save").addEventListener("click", () => {
   const saveName = document.getElementById("save-name").value.trim();
   if (saveName) {
     saveGameState(saveName);
+    resetAllAnimations(); // <-- Added to reset animations after saving
     closeModal();
   }
 });
@@ -3289,9 +3253,6 @@ if (confirmYesBtn) {
       p.hp = PLAYER_MAX_HP;
       p.displayHp = PLAYER_MAX_HP;
       p.alive = true;
-      p.anim = 0;
-      p.barShake = 0;
-      p.attackOffset = { x: 0, y: 0 };
       p.spriteFile = undefined;
       p.name = "";
       p._spriteImg = undefined;
@@ -3299,13 +3260,10 @@ if (confirmYesBtn) {
     boss.hp = BOSS_MAX_HP;
     boss.displayHp = BOSS_MAX_HP;
     boss.alive = true;
-    boss.anim = 0;
-    boss.barShake = 0;
-    boss.attackOffset = { x: 0, y: 0 };
-    currentPlayer = 0;
-    gameState = "player";
-    playersThisRound = [];
-    floatingDamages = [];
+
+    // Reset all animations and game state
+    resetAllAnimations();
+
     // Show character select
     showCharacterSelect();
     setCharMenuVisibility(true);
@@ -5717,4 +5675,94 @@ function createBasicSpecialProjectile(startX, startY, targetX, targetY) {
     rotation: 0,
     sparkles: [],
   });
+}
+
+// Comprehensive animation reset function
+function resetAllAnimations() {
+  // Reset all animation variables
+  player1Frame = 0;
+  player1AttackAnim = false;
+  player1AttackAnimFrame = 0;
+  player1AnimTimer = 0;
+  bossFrame = 0;
+  bossAttackAnim = false;
+  bossAttackAnimFrame = 0;
+  bossIdleFrame = 0;
+  bossIdleFrameTimer = 0;
+  bossDeathAnim = false;
+  bossDeathFrame = 0;
+  bossDeathFrameTimer = 0;
+  bossDeathY = 0;
+  bossDeathDone = false;
+  showWinScreen = false;
+  winScreenTimer = 0;
+  fireworks = [];
+  fireBroFrame = 0;
+  fireBroAnimTimer = 0;
+  booFrame = 0;
+  booAnimTimer = 0;
+  skipTurn = false;
+  isGamePaused = false;
+  pausedSFX = [];
+
+  // Reset player animation states and clear sprite images
+  players.forEach((p) => {
+    p.anim = 0;
+    p.barShake = 0;
+    p.attackOffset = { x: 0, y: 0 };
+    p.mainAttackOffset = { x: 0, y: 0 };
+    p.sidekickAttackOffset = { x: 0, y: 0 };
+    p.specialCharge = 0;
+    p.specialReady = false;
+    p.hasAttackedThisTurn = false;
+    p.sidekickHasAttackedThisTurn = false;
+    p.mainSpecialCharges = 2;
+    p.sidekickSpecialCharges = 2;
+    p.mainAttackSelected = false;
+    p.sidekickAttackSelected = false;
+    p.mainAttackType = null;
+    p.sidekickAttackType = null;
+    p.teamBuff = 0;
+    // Clear sprite images
+    p._spriteImg = undefined;
+    p._mainSpriteImg = undefined;
+    p._sidekickSpriteImg = undefined;
+  });
+
+  // Reset boss animation states
+  boss.anim = 0;
+  boss.barShake = 0;
+  boss.attackOffset = { x: 0, y: 0 };
+  boss.statusEffects = {};
+  // If you ever use boss._spriteImg, clear it here
+  if (boss._spriteImg) boss._spriteImg = undefined;
+
+  // Clear special attack animations
+  specialProjectiles = [];
+  specialEffects = [];
+  fireballProjectiles = [];
+  blizzardProjectiles = [];
+  scratchProjectiles = [];
+  bombProjectiles = [];
+  flyingProjectiles = [];
+  giantStompEffects = [];
+  basicSpecialProjectiles = [];
+  healAuras = [];
+  buffAuras = [];
+
+  // Clear floating damages
+  floatingDamages = [];
+
+  // Reset game state
+  currentPlayer = 0;
+  gameState = "player";
+  playersThisRound = [];
+  playerDamageDealt = [0, 0, 0, 0];
+
+  // Cancel and restart animation frame
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+  animationFrameId = requestAnimationFrame(gameLoop);
 }
