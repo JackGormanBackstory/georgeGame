@@ -217,6 +217,19 @@ let fireworks = [];
 let showWinScreen = false;
 let winScreenTimer = 0;
 
+// --- Special Attack Animation State ---
+let specialProjectiles = [];
+let specialEffects = [];
+let fireballProjectiles = [];
+let blizzardProjectiles = [];
+let scratchProjectiles = [];
+let bombProjectiles = [];
+let flyingProjectiles = [];
+let giantStompEffects = [];
+let basicSpecialProjectiles = [];
+let healAuras = [];
+let buffAuras = [];
+
 // Music controls
 const gameMusic = new Audio("music/bossMusic.mp3");
 gameMusic.loop = true;
@@ -286,8 +299,26 @@ window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
 function getCenteredPositions() {
-  const centerX = canvas.width / 2;
-  const bossY = canvas.height / 2 - 40;
+  // Calculate background dimensions and position (same logic as in draw function)
+  let bgDrawWidth, bgDrawHeight, bgOffsetX, bgOffsetY;
+
+  if (bgImg.complete && bgImg.naturalWidth > 0) {
+    const imgAspect = bgImg.naturalWidth / bgImg.naturalHeight;
+    bgDrawHeight = canvas.height;
+    bgDrawWidth = canvas.height * imgAspect;
+    bgOffsetX = (canvas.width - bgDrawWidth) / 2;
+    bgOffsetY = 0;
+  } else {
+    // Fallback if background not loaded
+    bgDrawWidth = canvas.width;
+    bgDrawHeight = canvas.height;
+    bgOffsetX = 0;
+    bgOffsetY = 0;
+  }
+
+  // Calculate boss position relative to background texture
+  const bossX = bgOffsetX + bgDrawWidth / 2; // Center of background
+  const bossY = canvas.height * 0.5; // 60% down from top of screen
 
   // Calculate UI position
   const uiElement = document.getElementById("ui");
@@ -306,7 +337,7 @@ function getCenteredPositions() {
   const totalPlayers = 4;
   const playerSpacing = 333; // Space between each player
   const totalWidth = (totalPlayers - 1) * playerSpacing; // Total width of all players
-  const startX = centerX - totalWidth / 2; // Start position to center the group
+  const startX = bgOffsetX + bgDrawWidth / 2 - totalWidth / 2; // Start position to center the group relative to background
 
   const playerPositions = [];
   for (let i = 0; i < totalPlayers; i++) {
@@ -317,7 +348,7 @@ function getCenteredPositions() {
   }
 
   return {
-    boss: { x: centerX, y: bossY },
+    boss: { x: bossX, y: bossY },
     players: playerPositions,
   };
 }
@@ -532,6 +563,9 @@ function showCharacterSelect() {
   // Clear all selected characters when returning to character menu
   selectedSprites = [];
   selectedNames = [];
+
+  // Reset all animations and game state
+  resetAllAnimations();
 
   // Clear and set up the grid
   const grid = document.getElementById("sprite-grid");
@@ -1252,6 +1286,10 @@ function draw() {
     bossBarX + bossBarW - 12,
     bossBarY + bossBarH / 2
   );
+
+  // Draw status effect icons to the right of the health bar
+  drawStatusEffectIcons(bossBarX + bossBarW + 8, bossBarY, boss.statusEffects);
+
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
   ctx.restore();
   // Boss Name (large, under health bar)
@@ -1293,10 +1331,15 @@ function draw() {
     ctx.rotate((Math.random() - 0.5) * 0.1 * boss.anim); // shake
     ctx.translate(-bossPos.x, -bossPos.y);
   }
-  const bossDrawW = 400;
-  const bossDrawH = 400;
-  const bossAttackDrawW = 506;
-  const bossAttackDrawH = 438;
+  // Calculate boss size based on screen height while maintaining aspect ratio
+  const baseBossHeight = 400; // Base height for reference
+  const screenHeightRatio = canvas.height / 1080; // Assuming 1080p as base resolution
+  const bossScale = Math.max(0.6, Math.min(1.2, screenHeightRatio)); // Scale between 60% and 120%
+
+  const bossDrawW = 400 * bossScale;
+  const bossDrawH = 400 * bossScale;
+  const bossAttackDrawW = 506 * bossScale;
+  const bossAttackDrawH = 438 * bossScale;
   if (bossDeathAnim && !showWinScreen) {
     // Use bowserAttackSheet.png frames 0,1,2 for death
     if (
@@ -1641,14 +1684,19 @@ function draw() {
       );
 
       // Player name (positioned above the character pair)
+      ctx.save();
       ctx.fillStyle = "#fff";
-      ctx.font = "16px sans-serif";
+      ctx.font = 'bold 28px "Press Start 2P", monospace, sans-serif';
       ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 8;
       ctx.fillText(
         p.name || `P${i + 1}`,
         basePos.x,
         basePos.y - SPRITE_SIZE / 2 - 15
       );
+      ctx.restore();
     });
   }
 
@@ -1657,7 +1705,7 @@ function draw() {
     ctx.save();
     ctx.globalAlpha = fd.alpha;
     ctx.font = `bold ${
-      fd.size || 28
+      fd.size || 42
     }px 'Press Start 2P', monospace, sans-serif`;
     ctx.fillStyle = fd.color || "#ff5252";
     ctx.textAlign = "center";
@@ -1680,6 +1728,9 @@ function draw() {
     ctx.fillText(fd.text, fd.x, fd.y);
     ctx.restore();
   });
+
+  // Draw special attack projectiles and effects
+  drawSpecialProjectiles();
 
   // WIN SCREEN
   if (showWinScreen) {
@@ -1909,6 +1960,10 @@ function draw() {
         boss.displayHp = BOSS_MAX_HP;
         // Reset damage tracking
         playerDamageDealt = [0, 0, 0, 0];
+
+        // Reset all animations and game state
+        resetAllAnimations();
+
         // Show UI again
         const ui = document.getElementById("ui");
         if (ui) ui.style.display = "";
@@ -2004,15 +2059,24 @@ function drawHealthBar(x, y, w, h, hp, maxHp, shake = 0) {
   ctx.restore();
 }
 
-function showFloatingDamage(x, y, text, color = "#ff5252") {
-  floatingDamages.push({ x, y, text, color, alpha: 1, vy: -1, life: 60 });
+function showFloatingDamage(x, y, text, color = "#ff5252", label = "") {
+  floatingDamages.push({
+    x,
+    y,
+    text,
+    color,
+    label,
+    alpha: 1,
+    vy: -0.5,
+    life: 240,
+  });
 }
 
 function updateFloatingDamages() {
   floatingDamages.forEach((fd) => {
     fd.y += fd.vy;
     fd.life--;
-    fd.alpha = Math.max(0, fd.life / 60);
+    fd.alpha = Math.max(0, fd.life / 240);
   });
   floatingDamages = floatingDamages.filter((fd) => fd.life > 0);
   // Reduce barShake for boss and players
@@ -2213,6 +2277,8 @@ function sidekickAttack() {
           "#f06292",
           "HEAL!"
         );
+        // Create heal aura for each player
+        createHealAura(idx);
       }
     });
   } else if (sidekickName === "Sidekick_Toad.png") {
@@ -2220,8 +2286,10 @@ function sidekickAttack() {
     damage = 0;
     color = "#fff";
     label = "BUFF!";
-    players.forEach((pl) => {
+    players.forEach((pl, idx) => {
       pl.teamBuff = (pl.teamBuff || 0) + 1;
+      // Create buff aura for each player
+      createBuffAura(idx);
     });
     if (!boss.statusEffects.distract) {
       boss.statusEffects.distract = { turns: 1 };
@@ -2232,7 +2300,7 @@ function sidekickAttack() {
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     let damage2 = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#66bb6a";
-    label = "DOUBLE!";
+    label = "DOUBLE SLAP!";
     boss.hp -= damage2;
     showFloatingDamage(
       positions.boss.x,
@@ -2246,6 +2314,14 @@ function sidekickAttack() {
     damage = 7 + player.teamBuff;
     color = "#ba68c8";
     label = "BOMB!";
+    // Create bomb projectile
+    const playerPos = positions.players[currentPlayer];
+    createBombProjectile(
+      playerPos.x,
+      playerPos.y,
+      positions.boss.x,
+      positions.boss.y
+    );
   } else if (sidekickName === "Sidekick_Wario.png") {
     // Wario: normal + poison
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
@@ -2259,7 +2335,7 @@ function sidekickAttack() {
     // DK: 8 damage
     damage = 8 + player.teamBuff;
     color = "#8d6e63";
-    label = "SMASH!";
+    label = "DONKEY SMASH!";
   } else {
     // Default: 5 damage
     damage = 5 + player.teamBuff;
@@ -2287,13 +2363,7 @@ function sidekickAttack() {
 
   // Show effect text if any
   if (effect) {
-    showFloatingDamage(
-      positions.boss.x,
-      positions.boss.y - 120,
-      effect,
-      color,
-      label
-    );
+    showFloatingDamage(positions.boss.x, positions.boss.y - 120, effect, color);
   }
 
   // Mark sidekick as having attacked
@@ -2371,7 +2441,7 @@ function bossAttack() {
   let targets = players
     .map((p, i) => (p.alive ? i : null))
     .filter((i) => i !== null);
-  let numAttacks = Math.min(2, targets.length);
+  let numAttacks = Math.min(3, targets.length);
   let chosen = [];
   while (chosen.length < numAttacks) {
     let idx = targets[Math.floor(Math.random() * targets.length)];
@@ -2381,212 +2451,239 @@ function bossAttack() {
   bossAttackAnim = true;
   bossAttackAnimFrame = 0;
   let damageDealt = false;
-  let anim = () => {
-    boss.anim = animFrames / (60 * BOSS_ATTACK_FRAMES);
-    // Move boss toward each target (average position if 2)
-    let tx = 0,
-      ty = 0;
-    chosen.forEach((i) => {
-      tx += positions.players[i].x;
-      ty += positions.players[i].y;
-    });
-    tx /= chosen.length;
-    ty /= chosen.length;
-    let dx = (tx - positions.boss.x) * 0.18;
-    let dy = (ty - positions.boss.y) * 0.18;
-    // Animate boss attack frames at 1 FPS
-    bossAttackAnimFrame = Math.floor(
-      (60 * BOSS_ATTACK_FRAMES - animFrames) / 60
-    );
-    if (bossAttackAnimFrame >= BOSS_ATTACK_FRAMES)
-      bossAttackAnimFrame = BOSS_ATTACK_FRAMES - 1;
-    // Move out for first 3 frames, then deal damage, pause, then move back
-    if (animFrames > 60) {
-      // Move out
-      let offset = { x: 0, y: 0 };
-      if (animFrames > 30 * BOSS_ATTACK_FRAMES) {
-        offset.x =
-          (dx * (60 * BOSS_ATTACK_FRAMES - animFrames)) /
-          (30 * BOSS_ATTACK_FRAMES);
-        offset.y =
-          (dy * (60 * BOSS_ATTACK_FRAMES - animFrames)) /
-          (30 * BOSS_ATTACK_FRAMES);
-      } else {
-        offset.x = (dx * animFrames) / (30 * BOSS_ATTACK_FRAMES);
-        offset.y = (dy * animFrames) / (30 * BOSS_ATTACK_FRAMES);
-      }
-      // Boss jump after 2nd frame (frames 2 and 3, i.e., bossAttackAnimFrame >= 2)
-      if (bossAttackAnimFrame >= 2 && animFrames > 60) {
-        // Calculate jump progress: 0 at start of frame 2, 1 at end of frame 3
-        let jumpTotalFrames = 2 * 60; // 2 frames at 1 FPS = 120 frames
-        let jumpFrame =
-          60 * (BOSS_ATTACK_FRAMES - bossAttackAnimFrame) - animFrames;
-        if (jumpFrame < 0) jumpFrame = 0;
-        if (jumpFrame > jumpTotalFrames) jumpFrame = jumpTotalFrames;
-        // Parabolic arc: peak at middle
-        let t = jumpFrame / jumpTotalFrames;
-        let jumpY = -40 * 4 * t * (1 - t); // Parabola, peak -40px
-        offset.y += jumpY;
-      }
-      boss.attackOffset = offset;
-      draw();
-      if (--animFrames > 0) {
-        requestAnimationFrame(anim);
-      }
-    } else if (!damageDealt) {
-      // On the last frame (frame 3), play sound and deal damage
-      bossAttackAnimFrame = BOSS_ATTACK_FRAMES - 1;
-      draw();
-      playSound(SFX.bossAttack, 0.6);
-      triggerScreenShake(); // Only shake when the attack sound plays
-      chosen.forEach((i) => {
-        let damage = Math.floor(Math.random() * 8) + 2;
-        players[i].hp -= damage;
-        players[i].anim = 1;
-        players[i].barShake = 1;
-        playSound(SFX.playerHit, 0.5);
-        showFloatingDamage(
-          positions.players[i].x,
-          positions.players[i].y - 50,
-          "-" + damage,
-          "#ffb300"
-        );
-        if (players[i].hp <= 0) {
-          players[i].hp = 0;
-          players[i].alive = false;
-          playSound(SFX.playerDeath, 0.7);
-        }
-      });
-      damageDealt = true;
-      setTimeout(() => {
-        // Animate boss moving back to original position over 0.5s
-        let returnFrames = 30;
-        let startOffset = { ...boss.attackOffset };
-        let returnAnim = () => {
-          let t = returnFrames / 30;
-          boss.attackOffset = {
-            x: startOffset.x * t,
-            y: startOffset.y * t,
-          };
-          draw();
-          if (--returnFrames > 0) {
-            requestAnimationFrame(returnAnim);
-          } else {
-            boss.anim = 0;
-            boss.attackOffset = { x: 0, y: 0 };
-            bossAttackAnim = false;
-            bossAttackAnimFrame = 0;
-            setTimeout(() => {
-              players.forEach((p) => (p.anim = 0));
-              draw();
-              if (players.every((p) => !p.alive)) {
-                gameState = "gameover";
-                turnIndicator.textContent = "Boss Wins!";
-                gameMusic.pause();
-              } else {
-                // Reset for next round
-                playersThisRound = [];
-                // Set currentPlayer to first alive player
-                currentPlayer = players.findIndex((p) => p.alive);
-                gameState = "player";
-                updateTurnIndicator();
-                // Update attack buttons for the new player
-                updateAttackButtons();
-              }
-            }, 400);
-          }
-        };
-        returnAnim();
-      }, 500); // 0.5 second pause on last frame
-    }
-  };
-  anim();
-  // Process status effects
-  let skipTurn = false;
+
+  // --- Staggered status effect damage ---
+  const statusEffectsToApply = [];
   if (boss.statusEffects.burn) {
-    boss.hp -= 2;
-    showFloatingDamage(
-      getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 120,
-      "-2",
-      "#ff5722",
-      "BURN"
-    );
-    boss.statusEffects.burn.turns--;
-    if (boss.statusEffects.burn.turns <= 0) delete boss.statusEffects.burn;
+    statusEffectsToApply.push({
+      type: "burn",
+      color: "#ff5722",
+      label: "BURN",
+      value: -2,
+    });
   }
   if (boss.statusEffects.bleed) {
-    boss.hp -= 2;
-    showFloatingDamage(
-      getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 100,
-      "-2",
-      "#ffb300",
-      "BLEED"
-    );
-    boss.statusEffects.bleed.turns--;
-    if (boss.statusEffects.bleed.turns <= 0) delete boss.statusEffects.bleed;
+    statusEffectsToApply.push({
+      type: "bleed",
+      color: "#ffb300",
+      label: "BLEED",
+      value: -2,
+    });
   }
   if (boss.statusEffects.poison) {
+    statusEffectsToApply.push({
+      type: "poison",
+      color: "#8bc34a",
+      label: "POISON",
+      value: -2,
+    });
+  }
+
+  // Helper to apply one status effect damage
+  function applyStatusEffectDamage(effect, idx) {
     boss.hp -= 2;
     showFloatingDamage(
       getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 80,
-      "-2",
-      "#8bc34a",
-      "POISON"
+      getCenteredPositions().boss.y - 120 + idx * 20,
+      effect.value.toString(),
+      effect.color,
+      effect.label
     );
-    boss.statusEffects.poison.turns--;
-    if (boss.statusEffects.poison.turns <= 0) delete boss.statusEffects.poison;
+    boss.statusEffects[effect.type].turns--;
+    if (boss.statusEffects[effect.type].turns <= 0)
+      delete boss.statusEffects[effect.type];
+    draw();
   }
-  if (boss.statusEffects.freeze) {
-    skipTurn = true;
-    boss.statusEffects.freeze.turns--;
-    showFloatingDamage(
-      getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 60,
-      "FROZEN!",
-      "#00e5ff",
-      "FREEZE"
-    );
-    if (boss.statusEffects.freeze.turns <= 0) delete boss.statusEffects.freeze;
-  }
-  if (boss.statusEffects.distract) {
-    skipTurn = true;
-    boss.statusEffects.distract.turns--;
-    showFloatingDamage(
-      getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 40,
-      "DISTRACTED!",
-      "#fff",
-      "BUFF"
-    );
-    if (boss.statusEffects.distract.turns <= 0)
-      delete boss.statusEffects.distract;
-  }
-  if (boss.hp <= 0) {
-    boss.hp = 0;
-    gameState = "gameover";
-    turnIndicator.textContent = "Players Win!";
-    bossDeathAnim = true;
-    bossDeathFrame = 0;
-    bossDeathFrameTimer = 0;
-    bossDeathY = 0;
-    bossDeathDone = false;
-    playSound(SFX.bossDeath, 0.7);
-    gameMusic.pause();
-    return;
-  }
-  if (skipTurn) {
-    // Boss skips turn
+
+  // Process status effects with staggered delay, then continue with boss attack
+  if (statusEffectsToApply.length > 0) {
+    statusEffectsToApply.forEach((effect, idx) => {
+      setTimeout(() => {
+        applyStatusEffectDamage(effect, idx);
+      }, idx * 500);
+    });
+    // Delay the boss attack until all status effects have been processed
     setTimeout(() => {
-      playersThisRound = [];
-      currentPlayer = players.findIndex((p) => p.alive);
-      gameState = "player";
-      updateTurnIndicator();
-      updateAttackButtons();
-    }, 1200);
+      continueBossAttack();
+    }, statusEffectsToApply.length * 800 + 100); // +100ms buffer
     return;
+  } else {
+    continueBossAttack();
+    return;
+  }
+
+  // --- The rest of bossAttack logic is now in continueBossAttack ---
+  function continueBossAttack() {
+    let anim = () => {
+      boss.anim = animFrames / (60 * BOSS_ATTACK_FRAMES);
+      // Move boss toward each target (average position if 2)
+      let tx = 0,
+        ty = 0;
+      chosen.forEach((i) => {
+        tx += positions.players[i].x;
+        ty += positions.players[i].y;
+      });
+      tx /= chosen.length;
+      ty /= chosen.length;
+      let dx = (tx - positions.boss.x) * 0.18;
+      let dy = (ty - positions.boss.y) * 0.18;
+      // Animate boss attack frames at 1 FPS
+      bossAttackAnimFrame = Math.floor(
+        (60 * BOSS_ATTACK_FRAMES - animFrames) / 60
+      );
+      if (bossAttackAnimFrame >= BOSS_ATTACK_FRAMES)
+        bossAttackAnimFrame = BOSS_ATTACK_FRAMES - 1;
+      // Move out for first 3 frames, then deal damage, pause, then move back
+      if (animFrames > 60) {
+        // Move out
+        let offset = { x: 0, y: 0 };
+        if (animFrames > 30 * BOSS_ATTACK_FRAMES) {
+          offset.x =
+            (dx * (60 * BOSS_ATTACK_FRAMES - animFrames)) /
+            (30 * BOSS_ATTACK_FRAMES);
+          offset.y =
+            (dy * (60 * BOSS_ATTACK_FRAMES - animFrames)) /
+            (30 * BOSS_ATTACK_FRAMES);
+        } else {
+          offset.x = (dx * animFrames) / (30 * BOSS_ATTACK_FRAMES);
+          offset.y = (dy * animFrames) / (30 * BOSS_ATTACK_FRAMES);
+        }
+        // Boss jump after 2nd frame (frames 2 and 3, i.e., bossAttackAnimFrame >= 2)
+        if (bossAttackAnimFrame >= 2 && animFrames > 60) {
+          // Calculate jump progress: 0 at start of frame 2, 1 at end of frame 3
+          let jumpTotalFrames = 2 * 60; // 2 frames at 1 FPS = 120 frames
+          let jumpFrame =
+            60 * (BOSS_ATTACK_FRAMES - bossAttackAnimFrame) - animFrames;
+          if (jumpFrame < 0) jumpFrame = 0;
+          if (jumpFrame > jumpTotalFrames) jumpFrame = jumpTotalFrames;
+          // Parabolic arc: peak at middle
+          let t = jumpFrame / jumpTotalFrames;
+          let jumpY = -40 * 4 * t * (1 - t); // Parabola, peak -40px
+          offset.y += jumpY;
+        }
+        boss.attackOffset = offset;
+        draw();
+        if (--animFrames > 0) {
+          requestAnimationFrame(anim);
+        }
+      } else if (!damageDealt) {
+        // On the last frame (frame 3), play sound and deal damage
+        bossAttackAnimFrame = BOSS_ATTACK_FRAMES - 1;
+        draw();
+        playSound(SFX.bossAttack, 0.6);
+        triggerScreenShake(); // Only shake when the attack sound plays
+        chosen.forEach((i) => {
+          let damage = Math.floor(Math.random() * 8) + 2;
+          players[i].hp -= damage;
+          players[i].anim = 1;
+          players[i].barShake = 1;
+          playSound(SFX.playerHit, 0.5);
+          showFloatingDamage(
+            positions.players[i].x,
+            positions.players[i].y - 50,
+            "-" + damage,
+            "#ffb300"
+          );
+          if (players[i].hp <= 0) {
+            players[i].hp = 0;
+            players[i].alive = false;
+            playSound(SFX.playerDeath, 0.7);
+          }
+        });
+        damageDealt = true;
+        setTimeout(() => {
+          // Animate boss moving back to original position over 0.5s
+          let returnFrames = 30;
+          let startOffset = { ...boss.attackOffset };
+          let returnAnim = () => {
+            let t = returnFrames / 30;
+            boss.attackOffset = {
+              x: startOffset.x * t,
+              y: startOffset.y * t,
+            };
+            draw();
+            if (--returnFrames > 0) {
+              requestAnimationFrame(returnAnim);
+            } else {
+              boss.anim = 0;
+              boss.attackOffset = { x: 0, y: 0 };
+              bossAttackAnim = false;
+              bossAttackAnimFrame = 0;
+              setTimeout(() => {
+                players.forEach((p) => (p.anim = 0));
+                draw();
+                if (players.every((p) => !p.alive)) {
+                  gameState = "gameover";
+                  turnIndicator.textContent = "Boss Wins!";
+                  gameMusic.pause();
+                } else {
+                  // Reset for next round
+                  playersThisRound = [];
+                  // Set currentPlayer to first alive player
+                  currentPlayer = players.findIndex((p) => p.alive);
+                  gameState = "player";
+                  updateTurnIndicator();
+                  // Update attack buttons for the new player
+                  updateAttackButtons();
+                }
+              }, 400);
+            }
+          };
+          returnAnim();
+        }, 500); // 0.5 second pause on last frame
+      }
+    };
+    anim();
+    // (Status effects that skip turn or distract are handled below)
+    let skipTurn = false;
+    if (boss.statusEffects.freeze) {
+      skipTurn = true;
+      boss.statusEffects.freeze.turns--;
+      showFloatingDamage(
+        getCenteredPositions().boss.x,
+        getCenteredPositions().boss.y - 60,
+        "FROZEN!",
+        "#00e5ff"
+      );
+      if (boss.statusEffects.freeze.turns <= 0)
+        delete boss.statusEffects.freeze;
+    }
+    if (boss.statusEffects.distract) {
+      skipTurn = true;
+      boss.statusEffects.distract.turns--;
+      showFloatingDamage(
+        getCenteredPositions().boss.x,
+        getCenteredPositions().boss.y - 40,
+        "DISTRACTED!",
+        "#fff"
+      );
+      if (boss.statusEffects.distract.turns <= 0)
+        delete boss.statusEffects.distract;
+    }
+    if (boss.hp <= 0) {
+      boss.hp = 0;
+      gameState = "gameover";
+      turnIndicator.textContent = "Players Win!";
+      bossDeathAnim = true;
+      bossDeathFrame = 0;
+      bossDeathFrameTimer = 0;
+      bossDeathY = 0;
+      bossDeathDone = false;
+      playSound(SFX.bossDeath, 0.7);
+      gameMusic.pause();
+      return;
+    }
+    if (skipTurn) {
+      // Boss skips turn
+      setTimeout(() => {
+        playersThisRound = [];
+        currentPlayer = players.findIndex((p) => p.alive);
+        gameState = "player";
+        updateTurnIndicator();
+        updateAttackButtons();
+      }, 1200);
+      return;
+    }
   }
 }
 
@@ -2728,6 +2825,7 @@ function gameLoop() {
   if (isGamePaused) return;
   updateFloatingDamages();
   updateClouds();
+  updateSpecialProjectiles();
   // Animate player 1 (idle: frames 0-4)
   player1AnimTimer++;
   if (!player1AttackAnim && player1AnimTimer % 28 === 0) {
@@ -2809,58 +2907,18 @@ function restartGame() {
     p.hp = PLAYER_MAX_HP;
     p.displayHp = PLAYER_MAX_HP;
     p.alive = true;
-    p.anim = 0;
-    p.barShake = 0;
-    p.attackOffset = { x: 0, y: 0 };
   });
   // Reset boss
   boss.hp = BOSS_MAX_HP;
   boss.displayHp = BOSS_MAX_HP;
   boss.alive = true;
-  boss.anim = 0;
-  boss.barShake = 0;
-  boss.attackOffset = { x: 0, y: 0 };
-  bossDeathAnim = false;
-  bossDeathFrame = 0;
-  bossDeathFrameTimer = 0;
-  bossDeathY = 0;
-  bossDeathDone = false;
-  showWinScreen = false;
-  winScreenTimer = 0;
-  fireworks = [];
-  // Reset damage tracking
-  playerDamageDealt = [0, 0, 0, 0];
-  // Reset turn and state
-  currentPlayer = 0;
-  gameState = "player";
-  playersThisRound = [];
+
+  // Reset all animations and game state
+  resetAllAnimations();
+
   updateTurnIndicator();
   // Remove old attack button reference - no longer needed with new UI
   // attackBtn.disabled = false;
-  // Reset player 1 animation
-  player1Frame = 0;
-  player1AttackAnim = false;
-  player1AttackAnimFrame = 0;
-  // Reset boss animation
-  bossFrame = 0;
-  bossAttackAnim = false;
-  bossAttackAnimFrame = 0;
-  bossIdleFrame = 0;
-  bossIdleFrameTimer = 0;
-  // Reset special attack states
-  players.forEach((p) => {
-    p.specialCharge = 0;
-    p.specialReady = false;
-    p.hasAttackedThisTurn = false;
-    p.sidekickHasAttackedThisTurn = false;
-    // Reset new attack cycle properties
-    p.mainSpecialCharges = 2;
-    p.sidekickSpecialCharges = 2;
-    p.mainAttackSelected = false;
-    p.sidekickAttackSelected = false;
-    p.mainAttackType = null;
-    p.sidekickAttackType = null;
-  });
   // Show UI again
   const ui = document.getElementById("ui");
   if (ui) ui.style.display = "";
@@ -2907,6 +2965,9 @@ function loadGameState(saveName) {
   const saveData = saves[saveName];
 
   if (saveData) {
+    // Reset all animations first to ensure clean state
+    resetAllAnimations();
+
     // Always reset players and boss to a clean state
     for (let i = 0; i < 4; i++) {
       players[i] = {
@@ -3140,6 +3201,7 @@ document.getElementById("confirm-save").addEventListener("click", () => {
   const saveName = document.getElementById("save-name").value.trim();
   if (saveName) {
     saveGameState(saveName);
+    resetAllAnimations(); // <-- Added to reset animations after saving
     closeModal();
   }
 });
@@ -3191,9 +3253,6 @@ if (confirmYesBtn) {
       p.hp = PLAYER_MAX_HP;
       p.displayHp = PLAYER_MAX_HP;
       p.alive = true;
-      p.anim = 0;
-      p.barShake = 0;
-      p.attackOffset = { x: 0, y: 0 };
       p.spriteFile = undefined;
       p.name = "";
       p._spriteImg = undefined;
@@ -3201,13 +3260,10 @@ if (confirmYesBtn) {
     boss.hp = BOSS_MAX_HP;
     boss.displayHp = BOSS_MAX_HP;
     boss.alive = true;
-    boss.anim = 0;
-    boss.barShake = 0;
-    boss.attackOffset = { x: 0, y: 0 };
-    currentPlayer = 0;
-    gameState = "player";
-    playersThisRound = [];
-    floatingDamages = [];
+
+    // Reset all animations and game state
+    resetAllAnimations();
+
     // Show character select
     showCharacterSelect();
     setCharMenuVisibility(true);
@@ -3487,135 +3543,10 @@ if (musicMuteBtn) {
   }, 500);
 }
 
-// --- Special Attack Logic ---
-function doSpecialAttack(idx) {
-  const p = players[idx];
-  const positions = getCenteredPositions();
-  let bossPos = positions.boss;
-  let damage = 0;
-  let color = "#fff";
-  let label = "SPECIAL!";
-  let effect = null;
-
-  // Determine special by main character sprite file
-  const mainChar = p.mainCharacter;
-
-  if (mainChar === "Mario_Fire.png") {
-    // Fire Mario: normal rng + burn
-    damage = Math.floor(Math.random() * 6) + 1 + p.teamBuff;
-    color = "#ff5722";
-    label = "BURN!";
-    if (!boss.statusEffects.burn) {
-      boss.statusEffects.burn = { turns: 3 };
-      effect = "Burn applied!";
-    }
-  } else if (mainChar === "Mario_Penguin.png") {
-    // Penguin Mario: normal rng + freeze
-    damage = Math.floor(Math.random() * 6) + 1 + p.teamBuff;
-    color = "#00e5ff";
-    label = "FREEZE!";
-    if (!boss.statusEffects.freeze) {
-      boss.statusEffects.freeze = { turns: 1 };
-      effect = "Boss frozen!";
-    }
-  } else if (
-    mainChar === "Mario_Cape.png" ||
-    mainChar === "Mario_Raccoon.png"
-  ) {
-    // Flying Mario: 7 damage
-    damage = 7 + p.teamBuff;
-    color = "#ffd600";
-    label = "CRIT!";
-  } else if (mainChar === "Mario_Giant.png") {
-    // Giant Mario: double normal, shake
-    damage = (Math.floor(Math.random() * 6) + 1 + p.teamBuff) * 2;
-    color = "#bdbdbd";
-    label = "SMASH!";
-    triggerScreenShake();
-  } else if (mainChar === "Mario_Cat.png") {
-    // Cat Mario: choose one (for now, always Bleed)
-    damage = Math.floor(Math.random() * 6) + 1 + p.teamBuff;
-    color = "#ffb300";
-    label = "BLEED!";
-    if (!boss.statusEffects.bleed) {
-      boss.statusEffects.bleed = { turns: 3 };
-      effect = "Bleed applied!";
-    }
-  } else {
-    // Default: 7 damage
-    damage = 7 + p.teamBuff;
-    color = "#fff";
-    label = "SPECIAL!";
-  }
-
-  // Apply damage
-  if (damage > 0) {
-    boss.hp -= damage;
-    boss.anim = 1;
-    boss.barShake = 1.5;
-    playSound(SFX.bossHit, 0.7);
-    showFloatingDamage(bossPos.x, bossPos.y - 70, "-" + damage, color, label);
-
-    // Track damage dealt by this player's special attack
-    playerDamageDealt[idx] += damage;
-  }
-
-  // Show effect text if any
-  if (effect) {
-    showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color, label);
-  }
-
-  // Reset special charge
-  p.specialCharge = 0;
-  p.specialReady = false;
-
-  setTimeout(() => {
-    boss.anim = 0;
-    draw();
-
-    if (boss.hp <= 0) {
-      boss.hp = 0;
-      gameState = "gameover";
-      turnIndicator.textContent = "Players Win!";
-      bossDeathAnim = true;
-      bossDeathFrame = 0;
-      bossDeathFrameTimer = 0;
-      bossDeathY = 0;
-      bossDeathDone = false;
-      playSound(SFX.bossDeath, 0.7);
-      gameMusic.pause();
-    } else {
-      // Mark main character as having attacked
-      players[currentPlayer].hasAttackedThisTurn = true;
-
-      // Now sidekick attacks automatically
-      setTimeout(() => {
-        sidekickAttack();
-      }, 400);
-    }
-  }, 400);
-}
-
-// --- Update floating damage to support label and color ---
-function showFloatingDamage(x, y, text, color = "#ff5252", label = "") {
-  floatingDamages.push({
-    x,
-    y,
-    text,
-    color,
-    label,
-    vy: -1.2,
-    life: 60,
-    alpha: 1,
-    size: label ? 38 : 28,
-  });
-}
-
 function createDragImage(file, fallbackImg) {
   // Use fallback image directly since drag images don't exist
   return fallbackImg;
 }
-
 function makeSpriteOptionDraggable(opt, idx, file, type, isSelected) {
   if (isSelected) {
     opt.removeAttribute("draggable");
@@ -4347,6 +4278,9 @@ function doMainSpecialAttack() {
       boss.statusEffects.burn = { turns: 3 };
       effect = "Burn applied!";
     }
+    // Create fireball projectile
+    const playerPos = positions.players[currentPlayer];
+    createFireballProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else if (mainChar === "Mario_Penguin.png") {
     // Penguin Mario: normal rng + freeze
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
@@ -4356,22 +4290,36 @@ function doMainSpecialAttack() {
       boss.statusEffects.freeze = { turns: 1 };
       effect = "Boss frozen!";
     }
+    // Create blizzard projectile
+    const playerPos = positions.players[currentPlayer];
+    createBlizzardProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else if (
     mainChar === "Mario_Cape.png" ||
     mainChar === "Mario_Raccoon.png"
   ) {
-    // Flying Mario: 7 damage
+    // Flying Mario: 7 damage + flying animation
     damage = 7 + player.teamBuff;
     color = "#ffd600";
     label = "CRIT!";
+    // Create flying effect - multiple projectiles in a spread pattern
+    const playerPos = positions.players[currentPlayer];
+    for (let i = 0; i < 3; i++) {
+      const angle = (i - 1) * 0.3; // Spread pattern
+      const targetX = bossPos.x + Math.cos(angle) * 50;
+      const targetY = bossPos.y + Math.sin(angle) * 50;
+      createFlyingProjectile(playerPos.x, playerPos.y, targetX, targetY);
+    }
   } else if (mainChar === "Mario_Giant.png") {
-    // Giant Mario: double normal, shake
+    // Giant Mario: double normal, shake + giant stomp effect
     damage = (Math.floor(Math.random() * 6) + 1 + player.teamBuff) * 2;
     color = "#bdbdbd";
     label = "SMASH!";
     triggerScreenShake();
+    // Create giant stomp effect
+    const playerPos = positions.players[currentPlayer];
+    createGiantStompEffect(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else if (mainChar === "Mario_Cat.png") {
-    // Cat Mario: choose one (for now, always Bleed)
+    // Cat Mario: normal rng + bleed + scratch projectile
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#ffb300";
     label = "BLEED!";
@@ -4379,11 +4327,22 @@ function doMainSpecialAttack() {
       boss.statusEffects.bleed = { turns: 3 };
       effect = "Bleed applied!";
     }
+    // Create scratch projectile
+    const playerPos = positions.players[currentPlayer];
+    createScratchProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else {
-    // Default: 7 damage
+    // Default: 7 damage + basic special effect
     damage = 7 + player.teamBuff;
     color = "#fff";
     label = "SPECIAL!";
+    // Create basic special projectile
+    const playerPos = positions.players[currentPlayer];
+    createBasicSpecialProjectile(
+      playerPos.x,
+      playerPos.y,
+      bossPos.x,
+      bossPos.y
+    );
   }
 
   // Start attack animation for player 1
@@ -4473,7 +4432,7 @@ function doMainSpecialAttack() {
 
       // Show effect text if any
       if (effect) {
-        showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color, label);
+        showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color);
       }
 
       // Use special charge
@@ -4586,6 +4545,10 @@ function doSidekickRegularAttack() {
       // Track damage dealt by this player's sidekick
       playerDamageDealt[currentPlayer] += damage;
 
+      // Use special charge
+      player.sidekickSpecialCharges--;
+      updateAttackButtons();
+
       setTimeout(() => {
         boss.anim = 0;
         draw();
@@ -4593,7 +4556,7 @@ function doSidekickRegularAttack() {
         if (boss.hp <= 0) {
           boss.hp = 0;
           gameState = "gameover";
-          turnIndicator.textContent = "";
+          turnIndicator.textContent = "Players Win!";
           executeAttacksBtn.disabled = true;
           bossDeathAnim = true;
           bossDeathFrame = 0;
@@ -4657,6 +4620,8 @@ function doSidekickSpecialAttack() {
           "#f06292",
           "HEAL!"
         );
+        // Create heal aura for each player
+        createHealAura(idx);
       }
     });
   } else if (sidekickName === "Sidekick_Toad.png") {
@@ -4664,8 +4629,10 @@ function doSidekickSpecialAttack() {
     damage = 0;
     color = "#fff";
     label = "BUFF!";
-    players.forEach((pl) => {
+    players.forEach((pl, idx) => {
       pl.teamBuff = (pl.teamBuff || 0) + 1;
+      // Create buff aura for each player
+      createBuffAura(idx);
     });
     if (!boss.statusEffects.distract) {
       boss.statusEffects.distract = { turns: 1 };
@@ -4676,7 +4643,7 @@ function doSidekickSpecialAttack() {
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     let damage2 = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#66bb6a";
-    label = "DOUBLE!";
+    label = "DOUBLE SLAP!";
     boss.hp -= damage2;
     showFloatingDamage(
       positions.boss.x,
@@ -4690,6 +4657,14 @@ function doSidekickSpecialAttack() {
     damage = 7 + player.teamBuff;
     color = "#ba68c8";
     label = "BOMB!";
+    // Create bomb projectile
+    const playerPos = positions.players[currentPlayer];
+    createBombProjectile(
+      playerPos.x,
+      playerPos.y,
+      positions.boss.x,
+      positions.boss.y
+    );
   } else if (sidekickName === "Sidekick_Wario.png") {
     // Wario: normal + poison
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
@@ -4703,7 +4678,7 @@ function doSidekickSpecialAttack() {
     // DK: 8 damage
     damage = 8 + player.teamBuff;
     color = "#8d6e63";
-    label = "SMASH!";
+    label = "DONKEY SMASH!";
   } else {
     // Default: 5 damage
     damage = 5 + player.teamBuff;
@@ -4802,8 +4777,7 @@ function doSidekickSpecialAttack() {
           positions.boss.x,
           positions.boss.y - 120,
           effect,
-          color,
-          label
+          color
         );
       }
 
@@ -4818,7 +4792,7 @@ function doSidekickSpecialAttack() {
         if (boss.hp <= 0) {
           boss.hp = 0;
           gameState = "gameover";
-          turnIndicator.textContent = "";
+          turnIndicator.textContent = "Players Win!";
           executeAttacksBtn.disabled = true;
           bossDeathAnim = true;
           bossDeathFrame = 0;
@@ -4871,3 +4845,924 @@ if (executeAttacksBtn)
 
 // Initialize attack buttons for first player
 updateAttackButtons();
+
+function drawStatusEffectIcons(x, y, statusEffects) {
+  const iconSize = 32;
+  const iconSpacing = 8;
+  let currentX = x;
+
+  // Draw each active status effect
+  Object.entries(statusEffects).forEach(([effect, data]) => {
+    if (data && data.turns > 0) {
+      ctx.save();
+
+      // Draw icon background
+      ctx.fillStyle = "#333";
+      ctx.fillRect(currentX, y, iconSize, iconSize);
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(currentX, y, iconSize, iconSize);
+
+      // Draw effect-specific icon
+      ctx.fillStyle = "#fff";
+      ctx.font = `${iconSize * 0.6}px sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      let icon = "";
+      let color = "#fff";
+
+      switch (effect) {
+        case "burn":
+          icon = "🔥";
+          color = "#ff5722";
+          break;
+        case "freeze":
+          icon = "❄️";
+          color = "#00e5ff";
+          break;
+        case "poison":
+          icon = "☠️";
+          color = "#8bc34a";
+          break;
+        case "bleed":
+          icon = "🩸";
+          color = "#d32f2f";
+          break;
+        case "distract":
+          icon = "💫";
+          color = "#fff";
+          break;
+        default:
+          icon = "⚡";
+      }
+
+      ctx.fillStyle = color;
+      ctx.fillText(icon, currentX + iconSize / 2, y + iconSize / 2);
+
+      // Draw turn counter below the icon box
+      ctx.fillStyle = "#fff";
+      ctx.font = `${iconSize * 0.5}px sans-serif`;
+      ctx.fillText(
+        data.turns.toString(),
+        currentX + iconSize / 2,
+        y + iconSize + 16
+      );
+
+      ctx.restore();
+
+      currentX += iconSize + iconSpacing;
+    }
+  });
+}
+
+// --- Special Attack Animation Functions ---
+function createFireballProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 8;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  fireballProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 60,
+    maxLife: 60,
+    size: 20,
+    rotation: 0,
+  });
+}
+
+function createBlizzardProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 6;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  blizzardProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 80,
+    maxLife: 80,
+    size: 25,
+    rotation: 0,
+    particles: [],
+  });
+}
+
+function createScratchProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 12;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  scratchProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 40,
+    maxLife: 40,
+    size: 15,
+    rotation: 0,
+  });
+}
+
+function createBombProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 5;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  bombProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 100,
+    maxLife: 100,
+    size: 30,
+    rotation: 0,
+    fuse: 60,
+  });
+}
+
+function createHealAura(playerIndex) {
+  const positions = getCenteredPositions();
+  const playerPos = positions.players[playerIndex];
+
+  healAuras.push({
+    x: playerPos.x,
+    y: playerPos.y,
+    life: 60,
+    maxLife: 60,
+    size: 0,
+    maxSize: 120,
+    playerIndex: playerIndex,
+  });
+}
+
+function createBuffAura(playerIndex) {
+  const positions = getCenteredPositions();
+  const playerPos = positions.players[playerIndex];
+
+  buffAuras.push({
+    x: playerPos.x,
+    y: playerPos.y,
+    life: 80,
+    maxLife: 80,
+    size: 0,
+    maxSize: 150,
+    playerIndex: playerIndex,
+  });
+}
+
+function updateSpecialProjectiles() {
+  // Update fireball projectiles
+  fireballProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.3;
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  fireballProjectiles = fireballProjectiles.filter((proj) => proj.life > 0);
+
+  // Update blizzard projectiles
+  blizzardProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.2;
+
+    // Add snow particles
+    if (proj.life % 3 === 0) {
+      proj.particles.push({
+        x: proj.x + (Math.random() - 0.5) * 20,
+        y: proj.y + (Math.random() - 0.5) * 20,
+        life: 20,
+        size: 2 + Math.random() * 3,
+      });
+    }
+
+    // Update particles
+    proj.particles.forEach((particle, pIndex) => {
+      particle.life--;
+    });
+    proj.particles = proj.particles.filter((particle) => particle.life > 0);
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  blizzardProjectiles = blizzardProjectiles.filter((proj) => proj.life > 0);
+
+  // Update scratch projectiles
+  scratchProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.5;
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  scratchProjectiles = scratchProjectiles.filter((proj) => proj.life > 0);
+
+  // Update bomb projectiles
+  bombProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.fuse--;
+    proj.rotation += 0.1;
+
+    // Check collision with boss or fuse expiration
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if ((distance < 60 || proj.fuse <= 0) && proj.life > 0) {
+      // Explode
+      proj.life = 0;
+      // Create explosion effect
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const speed = 3 + Math.random() * 2;
+        specialEffects.push({
+          x: proj.x,
+          y: proj.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 30,
+          maxLife: 30,
+          color: "#ff5722",
+          size: 8 + Math.random() * 4,
+        });
+      }
+    }
+  });
+  bombProjectiles = bombProjectiles.filter((proj) => proj.life > 0);
+
+  // Update flying projectiles
+  flyingProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.4;
+
+    // Add trail effect
+    if (proj.life % 2 === 0) {
+      proj.trail.push({
+        x: proj.x,
+        y: proj.y,
+        life: 15,
+        size: proj.size * 0.6,
+      });
+    }
+
+    // Update trail
+    proj.trail.forEach((trail, tIndex) => {
+      trail.life--;
+    });
+    proj.trail = proj.trail.filter((trail) => trail.life > 0);
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  flyingProjectiles = flyingProjectiles.filter((proj) => proj.life > 0);
+
+  // Update giant stomp effects
+  giantStompEffects.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.2;
+
+    // Add shockwave effect
+    if (proj.life % 4 === 0) {
+      proj.shockwaves.push({
+        x: proj.x,
+        y: proj.y,
+        life: 25,
+        size: 0,
+        maxSize: 80,
+      });
+    }
+
+    // Update shockwaves
+    proj.shockwaves.forEach((shockwave, sIndex) => {
+      shockwave.life--;
+      shockwave.size = (shockwave.maxSize * (25 - shockwave.life)) / 25;
+    });
+    proj.shockwaves = proj.shockwaves.filter((shockwave) => shockwave.life > 0);
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  giantStompEffects = giantStompEffects.filter((proj) => proj.life > 0);
+
+  // Update basic special projectiles
+  basicSpecialProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.3;
+
+    // Add sparkle effect
+    if (proj.life % 3 === 0) {
+      proj.sparkles.push({
+        x: proj.x + (Math.random() - 0.5) * 15,
+        y: proj.y + (Math.random() - 0.5) * 15,
+        life: 18,
+        size: 2 + Math.random() * 3,
+        color: ["#ffeb3b", "#ff9800", "#fff"][Math.floor(Math.random() * 3)],
+      });
+    }
+
+    // Update sparkles
+    proj.sparkles.forEach((sparkle, sIndex) => {
+      sparkle.life--;
+    });
+    proj.sparkles = proj.sparkles.filter((sparkle) => sparkle.life > 0);
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  basicSpecialProjectiles = basicSpecialProjectiles.filter(
+    (proj) => proj.life > 0
+  );
+
+  // Update heal auras
+  healAuras.forEach((aura, index) => {
+    aura.life--;
+    aura.size = (aura.maxSize * (aura.maxLife - aura.life)) / aura.maxLife;
+  });
+  healAuras = healAuras.filter((aura) => aura.life > 0);
+
+  // Update buff auras
+  buffAuras.forEach((aura, index) => {
+    aura.life--;
+    aura.size = (aura.maxSize * (aura.maxLife - aura.life)) / aura.maxLife;
+  });
+  buffAuras = buffAuras.filter((aura) => aura.life > 0);
+
+  // Update special effects
+  specialEffects.forEach((effect, index) => {
+    effect.x += effect.vx;
+    effect.y += effect.vy;
+    effect.life--;
+  });
+  specialEffects = specialEffects.filter((effect) => effect.life > 0);
+}
+
+function drawSpecialProjectiles() {
+  // Draw fireball projectiles
+  fireballProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Fireball glow
+    ctx.shadowColor = "#ff5722";
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = "#ff9800";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Fireball core
+    ctx.fillStyle = "#ffeb3b";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  });
+
+  // Draw blizzard projectiles
+  blizzardProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Blizzard glow
+    ctx.shadowColor = "#00e5ff";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#81d4fa";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Snow particles
+    proj.particles.forEach((particle) => {
+      ctx.save();
+      ctx.globalAlpha = particle.life / 20;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(
+        particle.x - proj.x,
+        particle.y - proj.y,
+        particle.size,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.restore();
+    });
+
+    ctx.restore();
+  });
+
+  // Draw scratch projectiles
+  scratchProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Scratch effect
+    ctx.strokeStyle = "#ffb300";
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "#ffb300";
+    ctx.shadowBlur = 8;
+
+    for (let i = 0; i < 3; i++) {
+      const offset = (i - 1) * 5;
+      ctx.beginPath();
+      ctx.moveTo(-proj.size, offset);
+      ctx.lineTo(proj.size, offset);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  });
+
+  // Draw bomb projectiles
+  bombProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.globalAlpha = proj.life / proj.maxLife;
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Draw bomb body
+    ctx.fillStyle = "#424242";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw fuse
+    ctx.strokeStyle = "#ff5722";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, -proj.size);
+    ctx.lineTo(0, -proj.size - 15);
+    ctx.stroke();
+
+    // Draw fuse tip
+    ctx.fillStyle = "#ff5722";
+    ctx.beginPath();
+    ctx.arc(0, -proj.size - 15, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  });
+
+  // Draw flying projectiles
+  flyingProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.globalAlpha = proj.life / proj.maxLife;
+
+    // Draw trail
+    proj.trail.forEach((trail, index) => {
+      const alpha = trail.life / 15;
+      ctx.globalAlpha = alpha * (proj.life / proj.maxLife);
+      ctx.fillStyle = "#ffd600";
+      ctx.beginPath();
+      ctx.arc(
+        trail.x,
+        trail.y,
+        trail.size * (index / proj.trail.length),
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    });
+
+    // Draw projectile
+    ctx.globalAlpha = proj.life / proj.maxLife;
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Draw flying projectile (winged shape)
+    ctx.fillStyle = "#ffd600";
+    ctx.beginPath();
+    ctx.moveTo(0, -proj.size);
+    ctx.lineTo(-proj.size * 0.7, 0);
+    ctx.lineTo(0, proj.size);
+    ctx.lineTo(proj.size * 0.7, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw wings
+    ctx.fillStyle = "#ff9800";
+    ctx.beginPath();
+    ctx.ellipse(
+      -proj.size * 0.8,
+      0,
+      proj.size * 0.4,
+      proj.size * 0.2,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(
+      proj.size * 0.8,
+      0,
+      proj.size * 0.4,
+      proj.size * 0.2,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    ctx.restore();
+  });
+
+  // Draw giant stomp effects
+  giantStompEffects.forEach((proj) => {
+    ctx.save();
+    ctx.globalAlpha = proj.life / proj.maxLife;
+
+    // Draw shockwaves
+    proj.shockwaves.forEach((shockwave) => {
+      const alpha = shockwave.life / 25;
+      ctx.globalAlpha = alpha * (proj.life / proj.maxLife);
+      ctx.strokeStyle = "#bdbdbd";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(shockwave.x, shockwave.y, shockwave.size, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // Draw stomp projectile
+    ctx.globalAlpha = proj.life / proj.maxLife;
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Draw giant foot
+    ctx.fillStyle = "#bdbdbd";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, proj.size, proj.size * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw foot details
+    ctx.strokeStyle = "#757575";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size * 0.8, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.restore();
+  });
+
+  // Draw basic special projectiles
+  basicSpecialProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.globalAlpha = proj.life / proj.maxLife;
+
+    // Draw sparkles
+    proj.sparkles.forEach((sparkle) => {
+      const alpha = sparkle.life / 18;
+      ctx.globalAlpha = alpha * (proj.life / proj.maxLife);
+      ctx.fillStyle = sparkle.color;
+      ctx.beginPath();
+      ctx.arc(sparkle.x, sparkle.y, sparkle.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Draw projectile
+    ctx.globalAlpha = proj.life / proj.maxLife;
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Draw star shape
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
+      const x = Math.cos(angle) * proj.size;
+      const y = Math.sin(angle) * proj.size;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw inner glow
+    ctx.fillStyle = "#ffeb3b";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  });
+
+  // Draw heal auras
+  healAuras.forEach((aura) => {
+    ctx.save();
+    ctx.globalAlpha = aura.life / aura.maxLife;
+
+    // Heal ring
+    ctx.strokeStyle = "#f06292";
+    ctx.lineWidth = 4;
+    ctx.shadowColor = "#f06292";
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(aura.x, aura.y, aura.size, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Heal particles
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + Date.now() / 1000;
+      const x = aura.x + Math.cos(angle) * aura.size;
+      const y = aura.y + Math.sin(angle) * aura.size;
+
+      ctx.fillStyle = "#f06292";
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  });
+
+  // Draw buff auras
+  buffAuras.forEach((aura) => {
+    ctx.save();
+    ctx.globalAlpha = aura.life / aura.maxLife;
+
+    // Buff ring
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 4;
+    ctx.shadowColor = "#fff";
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(aura.x, aura.y, aura.size, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Buff stars
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2 + Date.now() / 800;
+      const x = aura.x + Math.cos(angle) * aura.size;
+      const y = aura.y + Math.sin(angle) * aura.size;
+
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  });
+
+  // Draw special effects
+  specialEffects.forEach((effect) => {
+    ctx.save();
+    ctx.globalAlpha = effect.life / effect.maxLife;
+    ctx.fillStyle = effect.color;
+    ctx.shadowColor = effect.color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, effect.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function createFlyingProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 10;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  flyingProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 50,
+    maxLife: 50,
+    size: 18,
+    rotation: 0,
+    trail: [],
+  });
+}
+
+function createGiantStompEffect(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 15;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  giantStompEffects.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 40,
+    maxLife: 40,
+    size: 40,
+    rotation: 0,
+    shockwaves: [],
+  });
+}
+
+function createBasicSpecialProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 9;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  basicSpecialProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 70,
+    maxLife: 70,
+    size: 22,
+    rotation: 0,
+    sparkles: [],
+  });
+}
+
+// Comprehensive animation reset function
+function resetAllAnimations() {
+  // Reset all animation variables
+  player1Frame = 0;
+  player1AttackAnim = false;
+  player1AttackAnimFrame = 0;
+  player1AnimTimer = 0;
+  bossFrame = 0;
+  bossAttackAnim = false;
+  bossAttackAnimFrame = 0;
+  bossIdleFrame = 0;
+  bossIdleFrameTimer = 0;
+  bossDeathAnim = false;
+  bossDeathFrame = 0;
+  bossDeathFrameTimer = 0;
+  bossDeathY = 0;
+  bossDeathDone = false;
+  showWinScreen = false;
+  winScreenTimer = 0;
+  fireworks = [];
+  fireBroFrame = 0;
+  fireBroAnimTimer = 0;
+  booFrame = 0;
+  booAnimTimer = 0;
+  skipTurn = false;
+  isGamePaused = false;
+  pausedSFX = [];
+
+  // Reset player animation states and clear sprite images
+  players.forEach((p) => {
+    p.anim = 0;
+    p.barShake = 0;
+    p.attackOffset = { x: 0, y: 0 };
+    p.mainAttackOffset = { x: 0, y: 0 };
+    p.sidekickAttackOffset = { x: 0, y: 0 };
+    p.specialCharge = 0;
+    p.specialReady = false;
+    p.hasAttackedThisTurn = false;
+    p.sidekickHasAttackedThisTurn = false;
+    p.mainSpecialCharges = 2;
+    p.sidekickSpecialCharges = 2;
+    p.mainAttackSelected = false;
+    p.sidekickAttackSelected = false;
+    p.mainAttackType = null;
+    p.sidekickAttackType = null;
+    p.teamBuff = 0;
+    // Clear sprite images
+    p._spriteImg = undefined;
+    p._mainSpriteImg = undefined;
+    p._sidekickSpriteImg = undefined;
+  });
+
+  // Reset boss animation states
+  boss.anim = 0;
+  boss.barShake = 0;
+  boss.attackOffset = { x: 0, y: 0 };
+  boss.statusEffects = {};
+  // If you ever use boss._spriteImg, clear it here
+  if (boss._spriteImg) boss._spriteImg = undefined;
+
+  // Clear special attack animations
+  specialProjectiles = [];
+  specialEffects = [];
+  fireballProjectiles = [];
+  blizzardProjectiles = [];
+  scratchProjectiles = [];
+  bombProjectiles = [];
+  flyingProjectiles = [];
+  giantStompEffects = [];
+  basicSpecialProjectiles = [];
+  healAuras = [];
+  buffAuras = [];
+
+  // Clear floating damages
+  floatingDamages = [];
+
+  // Reset game state
+  currentPlayer = 0;
+  gameState = "player";
+  playersThisRound = [];
+  playerDamageDealt = [0, 0, 0, 0];
+
+  // Cancel and restart animation frame
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
+  animationFrameId = requestAnimationFrame(gameLoop);
+}
