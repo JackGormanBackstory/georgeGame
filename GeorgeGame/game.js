@@ -4857,15 +4857,6 @@ function drawStatusEffectIcons(x, y, statusEffects) {
       ctx.fillStyle = color;
       ctx.fillText(icon, currentX + iconSize / 2, y + iconSize / 2);
 
-      // Draw turn counter
-      ctx.fillStyle = "#fff";
-      ctx.font = `${iconSize * 0.4}px sans-serif`;
-      ctx.fillText(
-        data.turns.toString(),
-        currentX + iconSize / 2,
-        y + iconSize - 4
-      );
-
       ctx.restore();
 
       currentX += iconSize + iconSpacing;
