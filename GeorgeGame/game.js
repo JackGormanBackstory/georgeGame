@@ -528,6 +528,10 @@ if (closeMenuBtn)
 fightMenuModal.querySelector("#save-game-modal").onclick = () => {
   fightMenuModal.style.display = "none";
   document.getElementById("ui").style.display = "";
+  gameMusic.play().catch((error) => {
+    console.log("Music playback failed:", error.message);
+  });
+  resumeGame();
   openModal("save");
 };
 fightMenuModal.querySelector("#load-game-modal").onclick = () => {
@@ -1827,17 +1831,6 @@ function draw() {
           mainDrawH = 160;
         }
 
-        ctx.save();
-        // Always show alive sprites, even if player died
-        ctx.drawImage(
-          mainImg,
-          playerX - mainDrawW / 2 - 30, // Position main character to the left
-          midY - mainDrawH / 2,
-          mainDrawW,
-          mainDrawH
-        );
-        ctx.restore();
-
         // Flip sprites horizontally for players 3 and 4 (indices 2 and 3)
         if (i >= 2) {
           ctx.save();
@@ -1891,17 +1884,6 @@ function draw() {
           sidekickDrawW = 120;
           sidekickDrawH = 120;
         }
-
-        ctx.save();
-        // Always show alive sprites, even if player died
-        ctx.drawImage(
-          sidekickImg,
-          playerX - sidekickDrawW / 2 + 30, // Position sidekick to the right
-          midY - sidekickDrawH / 2,
-          sidekickDrawW,
-          sidekickDrawH
-        );
-        ctx.restore();
 
         // Flip sprites horizontally for players 3 and 4 (indices 2 and 3)
         if (i >= 2) {
@@ -2308,6 +2290,7 @@ function sidekickAttack() {
     });
   } else if (sidekickName === "Sidekick_Toad.png") {
     // Toad: buff team + boss skips turn
+    playSound("sounds/Charm.mp3", 1);
     damage = 0;
     color = "#fff";
     label = "BUFF!";
@@ -2976,6 +2959,7 @@ function saveGameState(saveName) {
     playersThisRound: JSON.parse(JSON.stringify(playersThisRound)),
     player1Frame: player1Frame,
     bossFrame: bossFrame,
+    playerDamageDealt: [...playerDamageDealt],
     timestamp: Date.now(),
     saveName: saveName,
   };
@@ -3073,6 +3057,9 @@ function loadGameState(saveName) {
       : [];
     player1Frame = saveData.player1Frame;
     bossFrame = saveData.bossFrame;
+    playerDamageDealt = Array.isArray(saveData.playerDamageDealt)
+      ? [...saveData.playerDamageDealt]
+      : [0, 0, 0, 0];
 
     updateTurnIndicator();
     updateAttackButtons(); // Update attack buttons with character special attack names
@@ -3226,7 +3213,6 @@ document.getElementById("confirm-save").addEventListener("click", () => {
   const saveName = document.getElementById("save-name").value.trim();
   if (saveName) {
     saveGameState(saveName);
-    resetAllAnimations(); // <-- Added to reset animations after saving
     closeModal();
   }
 });
@@ -4182,7 +4168,7 @@ function doMainRegularAttack() {
     player1AttackAnimFrame = 0;
   }
 
-  playSound(SFX.playerAttack, 0.5);
+  playSound("sounds/Cut.mp3", 1);
 
   // Attack animation with wind-up
   let animFrames = 48;
@@ -4296,6 +4282,7 @@ function doMainSpecialAttack() {
 
   if (mainChar === "Mario_Fire.png") {
     // Fire Mario: normal rng + burn
+    playSound("sounds/Fire Punch.mp3", 1);
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#ff5722";
     label = "BURN!";
@@ -4308,6 +4295,7 @@ function doMainSpecialAttack() {
     createFireballProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else if (mainChar === "Mario_Penguin.png") {
     // Penguin Mario: normal rng + freeze
+    playSound("sounds/Ice Ball.mp3", 1);
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#00e5ff";
     label = "FREEZE!";
@@ -4320,6 +4308,7 @@ function doMainSpecialAttack() {
     createBlizzardProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else if (mainChar === "Mario_Cape.png") {
     // Mario Cape: fly out, then dive down into boss
+    playSound("sounds/Fly part 2.mp3", 1);
     damage = 7 + player.teamBuff;
     color = "#ffd600";
     label = "CRIT!";
@@ -4435,6 +4424,7 @@ function doMainSpecialAttack() {
     return; // Skip the rest of the default animation logic
   } else if (mainChar === "Mario_Raccoon.png") {
     // Mario Raccoon: multiple flying projectiles with generic animation
+    playSound("sounds/Fly part 2.mp3", 1);
     damage = 7 + player.teamBuff;
     color = "#ffd600";
     label = "CRIT!";
@@ -4459,6 +4449,7 @@ function doMainSpecialAttack() {
     // Giant Mario uses generic animation + effects
   } else if (mainChar === "Mario_Cat.png") {
     // Cat Mario: normal rng + bleed + scratch projectile with leap animation
+    playSound("sounds/Fury Swipes 1hit.mp3", 1);
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#ffb300";
     label = "BLEED!";
@@ -4761,11 +4752,10 @@ function doSidekickRegularAttack() {
   const positions = getCenteredPositions();
 
   // Sidekick regular attack with animation
+  playSound("sounds/Cut.mp3", 1);
   let damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
   let color = "#4fc3f7";
   let label = "SIDEKICK!";
-
-  playSound(SFX.playerAttack, 0.5);
 
   // Attack animation with wind-up
   let animFrames = 48;
@@ -4875,6 +4865,7 @@ function doSidekickSpecialAttack() {
   const positions = getCenteredPositions();
 
   // Sidekick special attack (same as before)
+  playSound("sounds/Cut.mp3", 1);
   let damage = 0;
   let color = "#4fc3f7";
   let label = "SIDEKICK!";
@@ -4885,6 +4876,7 @@ function doSidekickSpecialAttack() {
 
   if (sidekickName === "Sidekick_Peach.png") {
     // Peach: heal all players by double rng
+    playSound("sounds/In-Battle Heal HP Restore.mp3", 1);
     damage = 0;
     color = "#f06292";
     label = "HEAL!";
@@ -4905,6 +4897,7 @@ function doSidekickSpecialAttack() {
     });
   } else if (sidekickName === "Sidekick_Toad.png") {
     // Toad: buff team + boss skips turn
+    playSound("sounds/Charm.mp3", 1);
     damage = 0;
     color = "#fff";
     label = "BUFF!";
@@ -4919,6 +4912,7 @@ function doSidekickSpecialAttack() {
     }
   } else if (sidekickName === "Sidekick_Luigi.png") {
     // Luigi: 2 normal attacks
+    playSound("sounds/Double Slap 2hits.mp3", 1);
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     let damage2 = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#66bb6a";
@@ -4931,21 +4925,9 @@ function doSidekickSpecialAttack() {
       color,
       label
     );
-  } else if (sidekickName === "Sidekick_Waluigi.png") {
-    // Waluigi: bomb, 7 damage
-    damage = 7 + player.teamBuff;
-    color = "#ba68c8";
-    label = "BOMB!";
-    // Create bomb projectile
-    const playerPos = positions.players[currentPlayer];
-    createBombProjectile(
-      playerPos.x,
-      playerPos.y,
-      positions.boss.x,
-      positions.boss.y
-    );
   } else if (sidekickName === "Sidekick_Wario.png") {
     // Wario: normal + poison
+    playSound("sounds/fart.mp3", 1);
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#8bc34a";
     label = "POISON!";
@@ -4971,7 +4953,9 @@ function doSidekickSpecialAttack() {
     player1AttackAnimFrame = 0;
   }
 
-  playSound(SFX.playerAttack, 0.5);
+  if (sidekickName !== "Sidekick_Toad.png") {
+    playSound(SFX.playerAttack, 0.5);
+  }
 
   // Attack animation with wind-up
   let animFrames = 48;
