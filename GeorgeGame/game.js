@@ -2288,7 +2288,7 @@ function sidekickAttack() {
     color = "#8bc34a";
     label = "POISON!";
     if (!boss.statusEffects.poison) {
-      boss.statusEffects.poison = { permanent: true };
+      boss.statusEffects.poison = { turns: 3 };
       effect = "Poison applied!";
     }
   } else if (sidekickName === "Sidekick_DK.png") {
@@ -2449,12 +2449,9 @@ function bossAttack() {
       effect.color,
       effect.label
     );
-    // Only decrement turns for non-permanent effects
-    if (!boss.statusEffects[effect.type].permanent) {
-      boss.statusEffects[effect.type].turns--;
-      if (boss.statusEffects[effect.type].turns <= 0)
-        delete boss.statusEffects[effect.type];
-    }
+    boss.statusEffects[effect.type].turns--;
+    if (boss.statusEffects[effect.type].turns <= 0)
+      delete boss.statusEffects[effect.type];
     draw();
   }
 
@@ -4279,7 +4276,7 @@ function doMainSpecialAttack() {
     color = "#ff5722";
     label = "BURN!";
     if (!boss.statusEffects.burn) {
-      boss.statusEffects.burn = { permanent: true };
+      boss.statusEffects.burn = { turns: 3 };
       effect = "Burn applied!";
     }
   } else if (mainChar === "Mario_Penguin.png") {
@@ -4311,7 +4308,7 @@ function doMainSpecialAttack() {
     color = "#ffb300";
     label = "BLEED!";
     if (!boss.statusEffects.bleed) {
-      boss.statusEffects.bleed = { permanent: true };
+      boss.statusEffects.bleed = { turns: 3 };
       effect = "Bleed applied!";
     }
   } else {
@@ -4631,7 +4628,7 @@ function doSidekickSpecialAttack() {
     color = "#8bc34a";
     label = "POISON!";
     if (!boss.statusEffects.poison) {
-      boss.statusEffects.poison = { permanent: true };
+      boss.statusEffects.poison = { turns: 3 };
       effect = "Poison applied!";
     }
   } else if (sidekickName === "Sidekick_DK.png") {
@@ -4813,7 +4810,7 @@ function drawStatusEffectIcons(x, y, statusEffects) {
 
   // Draw each active status effect
   Object.entries(statusEffects).forEach(([effect, data]) => {
-    if (data && (data.turns > 0 || data.permanent)) {
+    if (data && data.turns > 0) {
       ctx.save();
 
       // Draw icon background
@@ -4859,6 +4856,15 @@ function drawStatusEffectIcons(x, y, statusEffects) {
 
       ctx.fillStyle = color;
       ctx.fillText(icon, currentX + iconSize / 2, y + iconSize / 2);
+
+      // Draw turn counter below the icon box
+      ctx.fillStyle = "#fff";
+      ctx.font = `${iconSize * 0.5}px sans-serif`;
+      ctx.fillText(
+        data.turns.toString(),
+        currentX + iconSize / 2,
+        y + iconSize + 16
+      );
 
       ctx.restore();
 
