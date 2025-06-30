@@ -2404,212 +2404,241 @@ function bossAttack() {
   bossAttackAnim = true;
   bossAttackAnimFrame = 0;
   let damageDealt = false;
-  let anim = () => {
-    boss.anim = animFrames / (60 * BOSS_ATTACK_FRAMES);
-    // Move boss toward each target (average position if 2)
-    let tx = 0,
-      ty = 0;
-    chosen.forEach((i) => {
-      tx += positions.players[i].x;
-      ty += positions.players[i].y;
-    });
-    tx /= chosen.length;
-    ty /= chosen.length;
-    let dx = (tx - positions.boss.x) * 0.18;
-    let dy = (ty - positions.boss.y) * 0.18;
-    // Animate boss attack frames at 1 FPS
-    bossAttackAnimFrame = Math.floor(
-      (60 * BOSS_ATTACK_FRAMES - animFrames) / 60
-    );
-    if (bossAttackAnimFrame >= BOSS_ATTACK_FRAMES)
-      bossAttackAnimFrame = BOSS_ATTACK_FRAMES - 1;
-    // Move out for first 3 frames, then deal damage, pause, then move back
-    if (animFrames > 60) {
-      // Move out
-      let offset = { x: 0, y: 0 };
-      if (animFrames > 30 * BOSS_ATTACK_FRAMES) {
-        offset.x =
-          (dx * (60 * BOSS_ATTACK_FRAMES - animFrames)) /
-          (30 * BOSS_ATTACK_FRAMES);
-        offset.y =
-          (dy * (60 * BOSS_ATTACK_FRAMES - animFrames)) /
-          (30 * BOSS_ATTACK_FRAMES);
-      } else {
-        offset.x = (dx * animFrames) / (30 * BOSS_ATTACK_FRAMES);
-        offset.y = (dy * animFrames) / (30 * BOSS_ATTACK_FRAMES);
-      }
-      // Boss jump after 2nd frame (frames 2 and 3, i.e., bossAttackAnimFrame >= 2)
-      if (bossAttackAnimFrame >= 2 && animFrames > 60) {
-        // Calculate jump progress: 0 at start of frame 2, 1 at end of frame 3
-        let jumpTotalFrames = 2 * 60; // 2 frames at 1 FPS = 120 frames
-        let jumpFrame =
-          60 * (BOSS_ATTACK_FRAMES - bossAttackAnimFrame) - animFrames;
-        if (jumpFrame < 0) jumpFrame = 0;
-        if (jumpFrame > jumpTotalFrames) jumpFrame = jumpTotalFrames;
-        // Parabolic arc: peak at middle
-        let t = jumpFrame / jumpTotalFrames;
-        let jumpY = -40 * 4 * t * (1 - t); // Parabola, peak -40px
-        offset.y += jumpY;
-      }
-      boss.attackOffset = offset;
-      draw();
-      if (--animFrames > 0) {
-        requestAnimationFrame(anim);
-      }
-    } else if (!damageDealt) {
-      // On the last frame (frame 3), play sound and deal damage
-      bossAttackAnimFrame = BOSS_ATTACK_FRAMES - 1;
-      draw();
-      playSound(SFX.bossAttack, 0.6);
-      triggerScreenShake(); // Only shake when the attack sound plays
-      chosen.forEach((i) => {
-        let damage = Math.floor(Math.random() * 8) + 2;
-        players[i].hp -= damage;
-        players[i].anim = 1;
-        players[i].barShake = 1;
-        playSound(SFX.playerHit, 0.5);
-        showFloatingDamage(
-          positions.players[i].x,
-          positions.players[i].y - 50,
-          "-" + damage,
-          "#ffb300"
-        );
-        if (players[i].hp <= 0) {
-          players[i].hp = 0;
-          players[i].alive = false;
-          playSound(SFX.playerDeath, 0.7);
-        }
-      });
-      damageDealt = true;
-      setTimeout(() => {
-        // Animate boss moving back to original position over 0.5s
-        let returnFrames = 30;
-        let startOffset = { ...boss.attackOffset };
-        let returnAnim = () => {
-          let t = returnFrames / 30;
-          boss.attackOffset = {
-            x: startOffset.x * t,
-            y: startOffset.y * t,
-          };
-          draw();
-          if (--returnFrames > 0) {
-            requestAnimationFrame(returnAnim);
-          } else {
-            boss.anim = 0;
-            boss.attackOffset = { x: 0, y: 0 };
-            bossAttackAnim = false;
-            bossAttackAnimFrame = 0;
-            setTimeout(() => {
-              players.forEach((p) => (p.anim = 0));
-              draw();
-              if (players.every((p) => !p.alive)) {
-                gameState = "gameover";
-                turnIndicator.textContent = "Boss Wins!";
-                gameMusic.pause();
-              } else {
-                // Reset for next round
-                playersThisRound = [];
-                // Set currentPlayer to first alive player
-                currentPlayer = players.findIndex((p) => p.alive);
-                gameState = "player";
-                updateTurnIndicator();
-                // Update attack buttons for the new player
-                updateAttackButtons();
-              }
-            }, 400);
-          }
-        };
-        returnAnim();
-      }, 500); // 0.5 second pause on last frame
-    }
-  };
-  anim();
-  // Process status effects
-  let skipTurn = false;
+
+  // --- Staggered status effect damage ---
+  const statusEffectsToApply = [];
   if (boss.statusEffects.burn) {
-    boss.hp -= 2;
-    showFloatingDamage(
-      getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 120,
-      "-2",
-      "#ff5722",
-      "BURN"
-    );
-    boss.statusEffects.burn.turns--;
-    if (boss.statusEffects.burn.turns <= 0) delete boss.statusEffects.burn;
+    statusEffectsToApply.push({
+      type: "burn",
+      color: "#ff5722",
+      label: "BURN",
+      value: -2,
+    });
   }
   if (boss.statusEffects.bleed) {
-    boss.hp -= 2;
-    showFloatingDamage(
-      getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 100,
-      "-2",
-      "#ffb300",
-      "BLEED"
-    );
-    boss.statusEffects.bleed.turns--;
-    if (boss.statusEffects.bleed.turns <= 0) delete boss.statusEffects.bleed;
+    statusEffectsToApply.push({
+      type: "bleed",
+      color: "#ffb300",
+      label: "BLEED",
+      value: -2,
+    });
   }
   if (boss.statusEffects.poison) {
+    statusEffectsToApply.push({
+      type: "poison",
+      color: "#8bc34a",
+      label: "POISON",
+      value: -2,
+    });
+  }
+
+  // Helper to apply one status effect damage
+  function applyStatusEffectDamage(effect, idx) {
     boss.hp -= 2;
     showFloatingDamage(
       getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 80,
-      "-2",
-      "#8bc34a",
-      "POISON"
+      getCenteredPositions().boss.y - 120 + idx * 20,
+      effect.value.toString(),
+      effect.color,
+      effect.label
     );
-    boss.statusEffects.poison.turns--;
-    if (boss.statusEffects.poison.turns <= 0) delete boss.statusEffects.poison;
+    boss.statusEffects[effect.type].turns--;
+    if (boss.statusEffects[effect.type].turns <= 0)
+      delete boss.statusEffects[effect.type];
+    draw();
   }
-  if (boss.statusEffects.freeze) {
-    skipTurn = true;
-    boss.statusEffects.freeze.turns--;
-    showFloatingDamage(
-      getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 60,
-      "FROZEN!",
-      "#00e5ff",
-      "FREEZE"
-    );
-    if (boss.statusEffects.freeze.turns <= 0) delete boss.statusEffects.freeze;
-  }
-  if (boss.statusEffects.distract) {
-    skipTurn = true;
-    boss.statusEffects.distract.turns--;
-    showFloatingDamage(
-      getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 40,
-      "DISTRACTED!",
-      "#fff",
-      "BUFF"
-    );
-    if (boss.statusEffects.distract.turns <= 0)
-      delete boss.statusEffects.distract;
-  }
-  if (boss.hp <= 0) {
-    boss.hp = 0;
-    gameState = "gameover";
-    turnIndicator.textContent = "Players Win!";
-    bossDeathAnim = true;
-    bossDeathFrame = 0;
-    bossDeathFrameTimer = 0;
-    bossDeathY = 0;
-    bossDeathDone = false;
-    playSound(SFX.bossDeath, 0.7);
-    gameMusic.pause();
-    return;
-  }
-  if (skipTurn) {
-    // Boss skips turn
+
+  // Process status effects with staggered delay, then continue with boss attack
+  if (statusEffectsToApply.length > 0) {
+    statusEffectsToApply.forEach((effect, idx) => {
+      setTimeout(() => {
+        applyStatusEffectDamage(effect, idx);
+      }, idx * 500);
+    });
+    // Delay the boss attack until all status effects have been processed
     setTimeout(() => {
-      playersThisRound = [];
-      currentPlayer = players.findIndex((p) => p.alive);
-      gameState = "player";
-      updateTurnIndicator();
-      updateAttackButtons();
-    }, 1200);
+      continueBossAttack();
+    }, statusEffectsToApply.length * 500 + 100); // +100ms buffer
     return;
+  } else {
+    continueBossAttack();
+    return;
+  }
+
+  // --- The rest of bossAttack logic is now in continueBossAttack ---
+  function continueBossAttack() {
+    let anim = () => {
+      boss.anim = animFrames / (60 * BOSS_ATTACK_FRAMES);
+      // Move boss toward each target (average position if 2)
+      let tx = 0,
+        ty = 0;
+      chosen.forEach((i) => {
+        tx += positions.players[i].x;
+        ty += positions.players[i].y;
+      });
+      tx /= chosen.length;
+      ty /= chosen.length;
+      let dx = (tx - positions.boss.x) * 0.18;
+      let dy = (ty - positions.boss.y) * 0.18;
+      // Animate boss attack frames at 1 FPS
+      bossAttackAnimFrame = Math.floor(
+        (60 * BOSS_ATTACK_FRAMES - animFrames) / 60
+      );
+      if (bossAttackAnimFrame >= BOSS_ATTACK_FRAMES)
+        bossAttackAnimFrame = BOSS_ATTACK_FRAMES - 1;
+      // Move out for first 3 frames, then deal damage, pause, then move back
+      if (animFrames > 60) {
+        // Move out
+        let offset = { x: 0, y: 0 };
+        if (animFrames > 30 * BOSS_ATTACK_FRAMES) {
+          offset.x =
+            (dx * (60 * BOSS_ATTACK_FRAMES - animFrames)) /
+            (30 * BOSS_ATTACK_FRAMES);
+          offset.y =
+            (dy * (60 * BOSS_ATTACK_FRAMES - animFrames)) /
+            (30 * BOSS_ATTACK_FRAMES);
+        } else {
+          offset.x = (dx * animFrames) / (30 * BOSS_ATTACK_FRAMES);
+          offset.y = (dy * animFrames) / (30 * BOSS_ATTACK_FRAMES);
+        }
+        // Boss jump after 2nd frame (frames 2 and 3, i.e., bossAttackAnimFrame >= 2)
+        if (bossAttackAnimFrame >= 2 && animFrames > 60) {
+          // Calculate jump progress: 0 at start of frame 2, 1 at end of frame 3
+          let jumpTotalFrames = 2 * 60; // 2 frames at 1 FPS = 120 frames
+          let jumpFrame =
+            60 * (BOSS_ATTACK_FRAMES - bossAttackAnimFrame) - animFrames;
+          if (jumpFrame < 0) jumpFrame = 0;
+          if (jumpFrame > jumpTotalFrames) jumpFrame = jumpTotalFrames;
+          // Parabolic arc: peak at middle
+          let t = jumpFrame / jumpTotalFrames;
+          let jumpY = -40 * 4 * t * (1 - t); // Parabola, peak -40px
+          offset.y += jumpY;
+        }
+        boss.attackOffset = offset;
+        draw();
+        if (--animFrames > 0) {
+          requestAnimationFrame(anim);
+        }
+      } else if (!damageDealt) {
+        // On the last frame (frame 3), play sound and deal damage
+        bossAttackAnimFrame = BOSS_ATTACK_FRAMES - 1;
+        draw();
+        playSound(SFX.bossAttack, 0.6);
+        triggerScreenShake(); // Only shake when the attack sound plays
+        chosen.forEach((i) => {
+          let damage = Math.floor(Math.random() * 8) + 2;
+          players[i].hp -= damage;
+          players[i].anim = 1;
+          players[i].barShake = 1;
+          playSound(SFX.playerHit, 0.5);
+          showFloatingDamage(
+            positions.players[i].x,
+            positions.players[i].y - 50,
+            "-" + damage,
+            "#ffb300"
+          );
+          if (players[i].hp <= 0) {
+            players[i].hp = 0;
+            players[i].alive = false;
+            playSound(SFX.playerDeath, 0.7);
+          }
+        });
+        damageDealt = true;
+        setTimeout(() => {
+          // Animate boss moving back to original position over 0.5s
+          let returnFrames = 30;
+          let startOffset = { ...boss.attackOffset };
+          let returnAnim = () => {
+            let t = returnFrames / 30;
+            boss.attackOffset = {
+              x: startOffset.x * t,
+              y: startOffset.y * t,
+            };
+            draw();
+            if (--returnFrames > 0) {
+              requestAnimationFrame(returnAnim);
+            } else {
+              boss.anim = 0;
+              boss.attackOffset = { x: 0, y: 0 };
+              bossAttackAnim = false;
+              bossAttackAnimFrame = 0;
+              setTimeout(() => {
+                players.forEach((p) => (p.anim = 0));
+                draw();
+                if (players.every((p) => !p.alive)) {
+                  gameState = "gameover";
+                  turnIndicator.textContent = "Boss Wins!";
+                  gameMusic.pause();
+                } else {
+                  // Reset for next round
+                  playersThisRound = [];
+                  // Set currentPlayer to first alive player
+                  currentPlayer = players.findIndex((p) => p.alive);
+                  gameState = "player";
+                  updateTurnIndicator();
+                  // Update attack buttons for the new player
+                  updateAttackButtons();
+                }
+              }, 400);
+            }
+          };
+          returnAnim();
+        }, 500); // 0.5 second pause on last frame
+      }
+    };
+    anim();
+    // (Status effects that skip turn or distract are handled below)
+    let skipTurn = false;
+    if (boss.statusEffects.freeze) {
+      skipTurn = true;
+      boss.statusEffects.freeze.turns--;
+      showFloatingDamage(
+        getCenteredPositions().boss.x,
+        getCenteredPositions().boss.y - 60,
+        "FROZEN!",
+        "#00e5ff",
+        "FREEZE"
+      );
+      if (boss.statusEffects.freeze.turns <= 0)
+        delete boss.statusEffects.freeze;
+    }
+    if (boss.statusEffects.distract) {
+      skipTurn = true;
+      boss.statusEffects.distract.turns--;
+      showFloatingDamage(
+        getCenteredPositions().boss.x,
+        getCenteredPositions().boss.y - 40,
+        "DISTRACTED!",
+        "#fff",
+        "BUFF"
+      );
+      if (boss.statusEffects.distract.turns <= 0)
+        delete boss.statusEffects.distract;
+    }
+    if (boss.hp <= 0) {
+      boss.hp = 0;
+      gameState = "gameover";
+      turnIndicator.textContent = "Players Win!";
+      bossDeathAnim = true;
+      bossDeathFrame = 0;
+      bossDeathFrameTimer = 0;
+      bossDeathY = 0;
+      bossDeathDone = false;
+      playSound(SFX.bossDeath, 0.7);
+      gameMusic.pause();
+      return;
+    }
+    if (skipTurn) {
+      // Boss skips turn
+      setTimeout(() => {
+        playersThisRound = [];
+        currentPlayer = players.findIndex((p) => p.alive);
+        gameState = "player";
+        updateTurnIndicator();
+        updateAttackButtons();
+      }, 1200);
+      return;
+    }
   }
 }
 
@@ -4728,7 +4757,7 @@ function doSidekickSpecialAttack() {
   playSound(SFX.playerAttack, 0.5);
 
   // Attack animation with wind-up
-  let animFrames = 64;
+  let animFrames = 48;
   let pos = positions.players[currentPlayer];
   let dx = (positions.boss.x - pos.x) * 0.25;
   let dy = (positions.boss.y - pos.y) * 0.25;
