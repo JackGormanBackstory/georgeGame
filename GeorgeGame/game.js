@@ -1688,29 +1688,19 @@ function draw() {
     ctx.shadowColor = "#000";
     ctx.shadowBlur = 8;
     ctx.lineWidth = 6;
-    // Draw label next to number only if inlineLabel is true (status effect damage during boss's turn)
+    // Draw label above number if present
     if (fd.label) {
       ctx.font = `bold ${Math.round(
         (fd.size || 28) * 0.7
       )}px 'Press Start 2P', monospace, sans-serif`;
-      if (fd.inlineLabel) {
-        // Draw the label to the right of the number
-        ctx.strokeText(fd.text + " " + fd.label, fd.x, fd.y);
-        ctx.fillText(fd.text + " " + fd.label, fd.x, fd.y);
-      } else {
-        // Draw the label above the number (original style)
-        ctx.strokeText(fd.label, fd.x, fd.y - 24);
-        ctx.fillText(fd.label, fd.x, fd.y - 24);
-        ctx.font = `bold ${
-          fd.size || 28
-        }px 'Press Start 2P', monospace, sans-serif`;
-        ctx.strokeText(fd.text, fd.x, fd.y);
-        ctx.fillText(fd.text, fd.x, fd.y);
-      }
-    } else {
-      ctx.strokeText(fd.text, fd.x, fd.y);
-      ctx.fillText(fd.text, fd.x, fd.y);
+      ctx.strokeText(fd.label, fd.x, fd.y - 24);
+      ctx.fillText(fd.label, fd.x, fd.y - 24);
+      ctx.font = `bold ${
+        fd.size || 28
+      }px 'Press Start 2P', monospace, sans-serif`;
     }
+    ctx.strokeText(fd.text, fd.x, fd.y);
+    ctx.fillText(fd.text, fd.x, fd.y);
     ctx.restore();
   });
 
@@ -2037,26 +2027,16 @@ function drawHealthBar(x, y, w, h, hp, maxHp, shake = 0) {
   ctx.restore();
 }
 
-// --- Update floating damage to support label and color ---
-function showFloatingDamage(
-  x,
-  y,
-  text,
-  color = "#ff5252",
-  label = "",
-  inlineLabel = false
-) {
+function showFloatingDamage(x, y, text, color = "#ff5252", label = "") {
   floatingDamages.push({
     x,
     y,
     text,
     color,
     label,
-    inlineLabel, // true for status effect damage during boss's turn
+    alpha: 1,
     vy: -0.5,
     life: 240,
-    alpha: 1,
-    size: label ? 38 : 28,
   });
 }
 
@@ -2469,8 +2449,7 @@ function bossAttack() {
       getCenteredPositions().boss.y - 120 + idx * 20,
       effect.value.toString(),
       effect.color,
-      effect.label,
-      true // inlineLabel for status effect damage
+      effect.label
     );
     boss.statusEffects[effect.type].turns--;
     if (boss.statusEffects[effect.type].turns <= 0)
@@ -2626,8 +2605,7 @@ function bossAttack() {
         getCenteredPositions().boss.x,
         getCenteredPositions().boss.y - 60,
         "FROZEN!",
-        "#00e5ff",
-        "FREEZE"
+        "#00e5ff"
       );
       if (boss.statusEffects.freeze.turns <= 0)
         delete boss.statusEffects.freeze;
@@ -2639,8 +2617,7 @@ function bossAttack() {
         getCenteredPositions().boss.x,
         getCenteredPositions().boss.y - 40,
         "DISTRACTED!",
-        "#fff",
-        "BUFF"
+        "#fff"
       );
       if (boss.statusEffects.distract.turns <= 0)
         delete boss.statusEffects.distract;
