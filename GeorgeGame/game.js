@@ -217,6 +217,19 @@ let fireworks = [];
 let showWinScreen = false;
 let winScreenTimer = 0;
 
+// --- Special Attack Animation State ---
+let specialProjectiles = [];
+let specialEffects = [];
+let fireballProjectiles = [];
+let blizzardProjectiles = [];
+let scratchProjectiles = [];
+let bombProjectiles = [];
+let flyingProjectiles = [];
+let giantStompEffects = [];
+let basicSpecialProjectiles = [];
+let healAuras = [];
+let buffAuras = [];
+
 // Music controls
 const gameMusic = new Audio("music/bossMusic.mp3");
 gameMusic.loop = true;
@@ -1708,6 +1721,9 @@ function draw() {
     ctx.restore();
   });
 
+  // Draw special attack projectiles and effects
+  drawSpecialProjectiles();
+
   // WIN SCREEN
   if (showWinScreen) {
     // Hide turn indicator
@@ -2249,6 +2265,8 @@ function sidekickAttack() {
           "#f06292",
           "HEAL!"
         );
+        // Create heal aura for each player
+        createHealAura(idx);
       }
     });
   } else if (sidekickName === "Sidekick_Toad.png") {
@@ -2256,8 +2274,10 @@ function sidekickAttack() {
     damage = 0;
     color = "#fff";
     label = "BUFF!";
-    players.forEach((pl) => {
+    players.forEach((pl, idx) => {
       pl.teamBuff = (pl.teamBuff || 0) + 1;
+      // Create buff aura for each player
+      createBuffAura(idx);
     });
     if (!boss.statusEffects.distract) {
       boss.statusEffects.distract = { turns: 1 };
@@ -2268,7 +2288,7 @@ function sidekickAttack() {
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     let damage2 = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#66bb6a";
-    label = "DOUBLE!";
+    label = "DOUBLE SLAP!";
     boss.hp -= damage2;
     showFloatingDamage(
       positions.boss.x,
@@ -2282,6 +2302,14 @@ function sidekickAttack() {
     damage = 7 + player.teamBuff;
     color = "#ba68c8";
     label = "BOMB!";
+    // Create bomb projectile
+    const playerPos = positions.players[currentPlayer];
+    createBombProjectile(
+      playerPos.x,
+      playerPos.y,
+      positions.boss.x,
+      positions.boss.y
+    );
   } else if (sidekickName === "Sidekick_Wario.png") {
     // Wario: normal + poison
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
@@ -2295,7 +2323,7 @@ function sidekickAttack() {
     // DK: 8 damage
     damage = 8 + player.teamBuff;
     color = "#8d6e63";
-    label = "SMASH!";
+    label = "DONKEY SMASH!";
   } else {
     // Default: 5 damage
     damage = 5 + player.teamBuff;
@@ -2401,7 +2429,7 @@ function bossAttack() {
   let targets = players
     .map((p, i) => (p.alive ? i : null))
     .filter((i) => i !== null);
-  let numAttacks = Math.min(2, targets.length);
+  let numAttacks = Math.min(3, targets.length);
   let chosen = [];
   while (chosen.length < numAttacks) {
     let idx = targets[Math.floor(Math.random() * targets.length)];
@@ -2785,6 +2813,7 @@ function gameLoop() {
   if (isGamePaused) return;
   updateFloatingDamages();
   updateClouds();
+  updateSpecialProjectiles();
   // Animate player 1 (idle: frames 0-4)
   player1AnimTimer++;
   if (!player1AttackAnim && player1AnimTimer % 28 === 0) {
@@ -2928,6 +2957,18 @@ function restartGame() {
   if (turnIndicatorElem) turnIndicatorElem.style.display = "";
   // Update attack buttons
   updateAttackButtons();
+  // Clear special attack animations
+  specialProjectiles = [];
+  specialEffects = [];
+  fireballProjectiles = [];
+  blizzardProjectiles = [];
+  scratchProjectiles = [];
+  bombProjectiles = [];
+  flyingProjectiles = [];
+  giantStompEffects = [];
+  basicSpecialProjectiles = [];
+  healAuras = [];
+  buffAuras = [];
   draw();
 }
 
@@ -4279,6 +4320,9 @@ function doMainSpecialAttack() {
       boss.statusEffects.burn = { turns: 3 };
       effect = "Burn applied!";
     }
+    // Create fireball projectile
+    const playerPos = positions.players[currentPlayer];
+    createFireballProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else if (mainChar === "Mario_Penguin.png") {
     // Penguin Mario: normal rng + freeze
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
@@ -4288,22 +4332,36 @@ function doMainSpecialAttack() {
       boss.statusEffects.freeze = { turns: 1 };
       effect = "Boss frozen!";
     }
+    // Create blizzard projectile
+    const playerPos = positions.players[currentPlayer];
+    createBlizzardProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else if (
     mainChar === "Mario_Cape.png" ||
     mainChar === "Mario_Raccoon.png"
   ) {
-    // Flying Mario: 7 damage
+    // Flying Mario: 7 damage + flying animation
     damage = 7 + player.teamBuff;
     color = "#ffd600";
     label = "CRIT!";
+    // Create flying effect - multiple projectiles in a spread pattern
+    const playerPos = positions.players[currentPlayer];
+    for (let i = 0; i < 3; i++) {
+      const angle = (i - 1) * 0.3; // Spread pattern
+      const targetX = bossPos.x + Math.cos(angle) * 50;
+      const targetY = bossPos.y + Math.sin(angle) * 50;
+      createFlyingProjectile(playerPos.x, playerPos.y, targetX, targetY);
+    }
   } else if (mainChar === "Mario_Giant.png") {
-    // Giant Mario: double normal, shake
+    // Giant Mario: double normal, shake + giant stomp effect
     damage = (Math.floor(Math.random() * 6) + 1 + player.teamBuff) * 2;
     color = "#bdbdbd";
     label = "SMASH!";
     triggerScreenShake();
+    // Create giant stomp effect
+    const playerPos = positions.players[currentPlayer];
+    createGiantStompEffect(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else if (mainChar === "Mario_Cat.png") {
-    // Cat Mario: choose one (for now, always Bleed)
+    // Cat Mario: normal rng + bleed + scratch projectile
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#ffb300";
     label = "BLEED!";
@@ -4311,11 +4369,22 @@ function doMainSpecialAttack() {
       boss.statusEffects.bleed = { turns: 3 };
       effect = "Bleed applied!";
     }
+    // Create scratch projectile
+    const playerPos = positions.players[currentPlayer];
+    createScratchProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
   } else {
-    // Default: 7 damage
+    // Default: 7 damage + basic special effect
     damage = 7 + player.teamBuff;
     color = "#fff";
     label = "SPECIAL!";
+    // Create basic special projectile
+    const playerPos = positions.players[currentPlayer];
+    createBasicSpecialProjectile(
+      playerPos.x,
+      playerPos.y,
+      bossPos.x,
+      bossPos.y
+    );
   }
 
   // Start attack animation for player 1
@@ -4518,6 +4587,10 @@ function doSidekickRegularAttack() {
       // Track damage dealt by this player's sidekick
       playerDamageDealt[currentPlayer] += damage;
 
+      // Use special charge
+      player.sidekickSpecialCharges--;
+      updateAttackButtons();
+
       setTimeout(() => {
         boss.anim = 0;
         draw();
@@ -4525,7 +4598,7 @@ function doSidekickRegularAttack() {
         if (boss.hp <= 0) {
           boss.hp = 0;
           gameState = "gameover";
-          turnIndicator.textContent = "";
+          turnIndicator.textContent = "Players Win!";
           executeAttacksBtn.disabled = true;
           bossDeathAnim = true;
           bossDeathFrame = 0;
@@ -4589,6 +4662,8 @@ function doSidekickSpecialAttack() {
           "#f06292",
           "HEAL!"
         );
+        // Create heal aura for each player
+        createHealAura(idx);
       }
     });
   } else if (sidekickName === "Sidekick_Toad.png") {
@@ -4596,8 +4671,10 @@ function doSidekickSpecialAttack() {
     damage = 0;
     color = "#fff";
     label = "BUFF!";
-    players.forEach((pl) => {
+    players.forEach((pl, idx) => {
       pl.teamBuff = (pl.teamBuff || 0) + 1;
+      // Create buff aura for each player
+      createBuffAura(idx);
     });
     if (!boss.statusEffects.distract) {
       boss.statusEffects.distract = { turns: 1 };
@@ -4608,7 +4685,7 @@ function doSidekickSpecialAttack() {
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     let damage2 = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#66bb6a";
-    label = "DOUBLE KICK!";
+    label = "DOUBLE SLAP!";
     boss.hp -= damage2;
     showFloatingDamage(
       positions.boss.x,
@@ -4622,6 +4699,14 @@ function doSidekickSpecialAttack() {
     damage = 7 + player.teamBuff;
     color = "#ba68c8";
     label = "BOMB!";
+    // Create bomb projectile
+    const playerPos = positions.players[currentPlayer];
+    createBombProjectile(
+      playerPos.x,
+      playerPos.y,
+      positions.boss.x,
+      positions.boss.y
+    );
   } else if (sidekickName === "Sidekick_Wario.png") {
     // Wario: normal + poison
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
@@ -4635,7 +4720,7 @@ function doSidekickSpecialAttack() {
     // DK: 8 damage
     damage = 8 + player.teamBuff;
     color = "#8d6e63";
-    label = "SMASH!";
+    label = "DONKEY SMASH!";
   } else {
     // Default: 5 damage
     damage = 5 + player.teamBuff;
@@ -4749,7 +4834,7 @@ function doSidekickSpecialAttack() {
         if (boss.hp <= 0) {
           boss.hp = 0;
           gameState = "gameover";
-          turnIndicator.textContent = "";
+          turnIndicator.textContent = "Players Win!";
           executeAttacksBtn.disabled = true;
           bossDeathAnim = true;
           bossDeathFrame = 0;
@@ -4870,5 +4955,766 @@ function drawStatusEffectIcons(x, y, statusEffects) {
 
       currentX += iconSize + iconSpacing;
     }
+  });
+}
+
+// --- Special Attack Animation Functions ---
+function createFireballProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 8;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  fireballProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 60,
+    maxLife: 60,
+    size: 20,
+    rotation: 0,
+  });
+}
+
+function createBlizzardProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 6;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  blizzardProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 80,
+    maxLife: 80,
+    size: 25,
+    rotation: 0,
+    particles: [],
+  });
+}
+
+function createScratchProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 12;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  scratchProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 40,
+    maxLife: 40,
+    size: 15,
+    rotation: 0,
+  });
+}
+
+function createBombProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 5;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  bombProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 100,
+    maxLife: 100,
+    size: 30,
+    rotation: 0,
+    fuse: 60,
+  });
+}
+
+function createHealAura(playerIndex) {
+  const positions = getCenteredPositions();
+  const playerPos = positions.players[playerIndex];
+
+  healAuras.push({
+    x: playerPos.x,
+    y: playerPos.y,
+    life: 60,
+    maxLife: 60,
+    size: 0,
+    maxSize: 120,
+    playerIndex: playerIndex,
+  });
+}
+
+function createBuffAura(playerIndex) {
+  const positions = getCenteredPositions();
+  const playerPos = positions.players[playerIndex];
+
+  buffAuras.push({
+    x: playerPos.x,
+    y: playerPos.y,
+    life: 80,
+    maxLife: 80,
+    size: 0,
+    maxSize: 150,
+    playerIndex: playerIndex,
+  });
+}
+
+function updateSpecialProjectiles() {
+  // Update fireball projectiles
+  fireballProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.3;
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  fireballProjectiles = fireballProjectiles.filter((proj) => proj.life > 0);
+
+  // Update blizzard projectiles
+  blizzardProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.2;
+
+    // Add snow particles
+    if (proj.life % 3 === 0) {
+      proj.particles.push({
+        x: proj.x + (Math.random() - 0.5) * 20,
+        y: proj.y + (Math.random() - 0.5) * 20,
+        life: 20,
+        size: 2 + Math.random() * 3,
+      });
+    }
+
+    // Update particles
+    proj.particles.forEach((particle, pIndex) => {
+      particle.life--;
+    });
+    proj.particles = proj.particles.filter((particle) => particle.life > 0);
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  blizzardProjectiles = blizzardProjectiles.filter((proj) => proj.life > 0);
+
+  // Update scratch projectiles
+  scratchProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.5;
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  scratchProjectiles = scratchProjectiles.filter((proj) => proj.life > 0);
+
+  // Update bomb projectiles
+  bombProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.fuse--;
+    proj.rotation += 0.1;
+
+    // Check collision with boss or fuse expiration
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if ((distance < 60 || proj.fuse <= 0) && proj.life > 0) {
+      // Explode
+      proj.life = 0;
+      // Create explosion effect
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const speed = 3 + Math.random() * 2;
+        specialEffects.push({
+          x: proj.x,
+          y: proj.y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: 30,
+          maxLife: 30,
+          color: "#ff5722",
+          size: 8 + Math.random() * 4,
+        });
+      }
+    }
+  });
+  bombProjectiles = bombProjectiles.filter((proj) => proj.life > 0);
+
+  // Update flying projectiles
+  flyingProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.4;
+
+    // Add trail effect
+    if (proj.life % 2 === 0) {
+      proj.trail.push({
+        x: proj.x,
+        y: proj.y,
+        life: 15,
+        size: proj.size * 0.6,
+      });
+    }
+
+    // Update trail
+    proj.trail.forEach((trail, tIndex) => {
+      trail.life--;
+    });
+    proj.trail = proj.trail.filter((trail) => trail.life > 0);
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  flyingProjectiles = flyingProjectiles.filter((proj) => proj.life > 0);
+
+  // Update giant stomp effects
+  giantStompEffects.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.2;
+
+    // Add shockwave effect
+    if (proj.life % 4 === 0) {
+      proj.shockwaves.push({
+        x: proj.x,
+        y: proj.y,
+        life: 25,
+        size: 0,
+        maxSize: 80,
+      });
+    }
+
+    // Update shockwaves
+    proj.shockwaves.forEach((shockwave, sIndex) => {
+      shockwave.life--;
+      shockwave.size = (shockwave.maxSize * (25 - shockwave.life)) / 25;
+    });
+    proj.shockwaves = proj.shockwaves.filter((shockwave) => shockwave.life > 0);
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  giantStompEffects = giantStompEffects.filter((proj) => proj.life > 0);
+
+  // Update basic special projectiles
+  basicSpecialProjectiles.forEach((proj, index) => {
+    proj.x += proj.vx;
+    proj.y += proj.vy;
+    proj.life--;
+    proj.rotation += 0.3;
+
+    // Add sparkle effect
+    if (proj.life % 3 === 0) {
+      proj.sparkles.push({
+        x: proj.x + (Math.random() - 0.5) * 15,
+        y: proj.y + (Math.random() - 0.5) * 15,
+        life: 18,
+        size: 2 + Math.random() * 3,
+        color: ["#ffeb3b", "#ff9800", "#fff"][Math.floor(Math.random() * 3)],
+      });
+    }
+
+    // Update sparkles
+    proj.sparkles.forEach((sparkle, sIndex) => {
+      sparkle.life--;
+    });
+    proj.sparkles = proj.sparkles.filter((sparkle) => sparkle.life > 0);
+
+    // Check collision with boss
+    const positions = getCenteredPositions();
+    const bossPos = positions.boss;
+    const distance = Math.sqrt(
+      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+    );
+
+    if (distance < 60 && proj.life > 0) {
+      // Hit boss
+      proj.life = 0;
+    }
+  });
+  basicSpecialProjectiles = basicSpecialProjectiles.filter(
+    (proj) => proj.life > 0
+  );
+
+  // Update heal auras
+  healAuras.forEach((aura, index) => {
+    aura.life--;
+    aura.size = (aura.maxSize * (aura.maxLife - aura.life)) / aura.maxLife;
+  });
+  healAuras = healAuras.filter((aura) => aura.life > 0);
+
+  // Update buff auras
+  buffAuras.forEach((aura, index) => {
+    aura.life--;
+    aura.size = (aura.maxSize * (aura.maxLife - aura.life)) / aura.maxLife;
+  });
+  buffAuras = buffAuras.filter((aura) => aura.life > 0);
+
+  // Update special effects
+  specialEffects.forEach((effect, index) => {
+    effect.x += effect.vx;
+    effect.y += effect.vy;
+    effect.life--;
+  });
+  specialEffects = specialEffects.filter((effect) => effect.life > 0);
+}
+
+function drawSpecialProjectiles() {
+  // Draw fireball projectiles
+  fireballProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Fireball glow
+    ctx.shadowColor = "#ff5722";
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = "#ff9800";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Fireball core
+    ctx.fillStyle = "#ffeb3b";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size * 0.6, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  });
+
+  // Draw blizzard projectiles
+  blizzardProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Blizzard glow
+    ctx.shadowColor = "#00e5ff";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#81d4fa";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Snow particles
+    proj.particles.forEach((particle) => {
+      ctx.save();
+      ctx.globalAlpha = particle.life / 20;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(
+        particle.x - proj.x,
+        particle.y - proj.y,
+        particle.size,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.restore();
+    });
+
+    ctx.restore();
+  });
+
+  // Draw scratch projectiles
+  scratchProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Scratch effect
+    ctx.strokeStyle = "#ffb300";
+    ctx.lineWidth = 3;
+    ctx.shadowColor = "#ffb300";
+    ctx.shadowBlur = 8;
+
+    for (let i = 0; i < 3; i++) {
+      const offset = (i - 1) * 5;
+      ctx.beginPath();
+      ctx.moveTo(-proj.size, offset);
+      ctx.lineTo(proj.size, offset);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  });
+
+  // Draw bomb projectiles
+  bombProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.globalAlpha = proj.life / proj.maxLife;
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Draw bomb body
+    ctx.fillStyle = "#424242";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw fuse
+    ctx.strokeStyle = "#ff5722";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, -proj.size);
+    ctx.lineTo(0, -proj.size - 15);
+    ctx.stroke();
+
+    // Draw fuse tip
+    ctx.fillStyle = "#ff5722";
+    ctx.beginPath();
+    ctx.arc(0, -proj.size - 15, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  });
+
+  // Draw flying projectiles
+  flyingProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.globalAlpha = proj.life / proj.maxLife;
+
+    // Draw trail
+    proj.trail.forEach((trail, index) => {
+      const alpha = trail.life / 15;
+      ctx.globalAlpha = alpha * (proj.life / proj.maxLife);
+      ctx.fillStyle = "#ffd600";
+      ctx.beginPath();
+      ctx.arc(
+        trail.x,
+        trail.y,
+        trail.size * (index / proj.trail.length),
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    });
+
+    // Draw projectile
+    ctx.globalAlpha = proj.life / proj.maxLife;
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Draw flying projectile (winged shape)
+    ctx.fillStyle = "#ffd600";
+    ctx.beginPath();
+    ctx.moveTo(0, -proj.size);
+    ctx.lineTo(-proj.size * 0.7, 0);
+    ctx.lineTo(0, proj.size);
+    ctx.lineTo(proj.size * 0.7, 0);
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw wings
+    ctx.fillStyle = "#ff9800";
+    ctx.beginPath();
+    ctx.ellipse(
+      -proj.size * 0.8,
+      0,
+      proj.size * 0.4,
+      proj.size * 0.2,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(
+      proj.size * 0.8,
+      0,
+      proj.size * 0.4,
+      proj.size * 0.2,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    ctx.restore();
+  });
+
+  // Draw giant stomp effects
+  giantStompEffects.forEach((proj) => {
+    ctx.save();
+    ctx.globalAlpha = proj.life / proj.maxLife;
+
+    // Draw shockwaves
+    proj.shockwaves.forEach((shockwave) => {
+      const alpha = shockwave.life / 25;
+      ctx.globalAlpha = alpha * (proj.life / proj.maxLife);
+      ctx.strokeStyle = "#bdbdbd";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(shockwave.x, shockwave.y, shockwave.size, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // Draw stomp projectile
+    ctx.globalAlpha = proj.life / proj.maxLife;
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Draw giant foot
+    ctx.fillStyle = "#bdbdbd";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, proj.size, proj.size * 0.6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw foot details
+    ctx.strokeStyle = "#757575";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size * 0.8, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.restore();
+  });
+
+  // Draw basic special projectiles
+  basicSpecialProjectiles.forEach((proj) => {
+    ctx.save();
+    ctx.globalAlpha = proj.life / proj.maxLife;
+
+    // Draw sparkles
+    proj.sparkles.forEach((sparkle) => {
+      const alpha = sparkle.life / 18;
+      ctx.globalAlpha = alpha * (proj.life / proj.maxLife);
+      ctx.fillStyle = sparkle.color;
+      ctx.beginPath();
+      ctx.arc(sparkle.x, sparkle.y, sparkle.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Draw projectile
+    ctx.globalAlpha = proj.life / proj.maxLife;
+    ctx.translate(proj.x, proj.y);
+    ctx.rotate(proj.rotation);
+
+    // Draw star shape
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const angle = (i * Math.PI * 2) / 5 - Math.PI / 2;
+      const x = Math.cos(angle) * proj.size;
+      const y = Math.sin(angle) * proj.size;
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Draw inner glow
+    ctx.fillStyle = "#ffeb3b";
+    ctx.beginPath();
+    ctx.arc(0, 0, proj.size * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  });
+
+  // Draw heal auras
+  healAuras.forEach((aura) => {
+    ctx.save();
+    ctx.globalAlpha = aura.life / aura.maxLife;
+
+    // Heal ring
+    ctx.strokeStyle = "#f06292";
+    ctx.lineWidth = 4;
+    ctx.shadowColor = "#f06292";
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(aura.x, aura.y, aura.size, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Heal particles
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2 + Date.now() / 1000;
+      const x = aura.x + Math.cos(angle) * aura.size;
+      const y = aura.y + Math.sin(angle) * aura.size;
+
+      ctx.fillStyle = "#f06292";
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  });
+
+  // Draw buff auras
+  buffAuras.forEach((aura) => {
+    ctx.save();
+    ctx.globalAlpha = aura.life / aura.maxLife;
+
+    // Buff ring
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 4;
+    ctx.shadowColor = "#fff";
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(aura.x, aura.y, aura.size, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Buff stars
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2 + Date.now() / 800;
+      const x = aura.x + Math.cos(angle) * aura.size;
+      const y = aura.y + Math.sin(angle) * aura.size;
+
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.restore();
+  });
+
+  // Draw special effects
+  specialEffects.forEach((effect) => {
+    ctx.save();
+    ctx.globalAlpha = effect.life / effect.maxLife;
+    ctx.fillStyle = effect.color;
+    ctx.shadowColor = effect.color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(effect.x, effect.y, effect.size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  });
+}
+
+function createFlyingProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 10;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  flyingProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 50,
+    maxLife: 50,
+    size: 18,
+    rotation: 0,
+    trail: [],
+  });
+}
+
+function createGiantStompEffect(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 15;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  giantStompEffects.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 40,
+    maxLife: 40,
+    size: 40,
+    rotation: 0,
+    shockwaves: [],
+  });
+}
+
+function createBasicSpecialProjectile(startX, startY, targetX, targetY) {
+  const dx = targetX - startX;
+  const dy = targetY - startY;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  const speed = 9;
+  const vx = (dx / distance) * speed;
+  const vy = (dy / distance) * speed;
+
+  basicSpecialProjectiles.push({
+    x: startX,
+    y: startY,
+    vx: vx,
+    vy: vy,
+    life: 70,
+    maxLife: 70,
+    size: 22,
+    rotation: 0,
+    sparkles: [],
   });
 }
