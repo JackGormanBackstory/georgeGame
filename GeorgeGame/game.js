@@ -1497,10 +1497,35 @@ function draw() {
           }
 
           // Draw main character with individual animation offset
-          const mainPos = {
-            x: basePos.x - PAIR_SPACING / 2 + (p.mainAttackOffset?.x || 0),
-            y: basePos.y + yOffset + (p.mainAttackOffset?.y || 0),
-          };
+          let drawMarioCapeFly = false;
+          let drawMarioCatLeap = false;
+          let marioCapeFlyX, marioCapeFlyY;
+          let marioCatLeapX, marioCatLeapY;
+          if (
+            p.mainCharacter === "Mario_Cape.png" &&
+            p.capeFlyAnim &&
+            p.capeFlyAnim.phase === "arc"
+          ) {
+            drawMarioCapeFly = true;
+            marioCapeFlyX = p.capeFlyAnim.marioX;
+            marioCapeFlyY = p.capeFlyAnim.marioY;
+          } else if (
+            p.mainCharacter === "Mario_Cat.png" &&
+            p.catLeapAnim &&
+            (p.catLeapAnim.phase === "leap" || p.catLeapAnim.phase === "return")
+          ) {
+            drawMarioCatLeap = true;
+            marioCatLeapX = p.catLeapAnim.marioX;
+            marioCatLeapY = p.catLeapAnim.marioY;
+          }
+          const mainPos = drawMarioCapeFly
+            ? { x: marioCapeFlyX, y: marioCapeFlyY }
+            : drawMarioCatLeap
+            ? { x: marioCatLeapX, y: marioCatLeapY }
+            : {
+                x: basePos.x - PAIR_SPACING / 2 + (p.mainAttackOffset?.x || 0),
+                y: basePos.y + yOffset + (p.mainAttackOffset?.y || 0),
+              };
 
           // Flip sprites horizontally for players 3 and 4 (indices 2 and 3)
           if (i >= 2) {
@@ -4293,11 +4318,123 @@ function doMainSpecialAttack() {
     // Create blizzard projectile
     const playerPos = positions.players[currentPlayer];
     createBlizzardProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
-  } else if (
-    mainChar === "Mario_Cape.png" ||
-    mainChar === "Mario_Raccoon.png"
-  ) {
-    // Flying Mario: 7 damage + flying animation
+  } else if (mainChar === "Mario_Cape.png") {
+    // Mario Cape: fly out, then dive down into boss
+    damage = 7 + player.teamBuff;
+    color = "#ffd600";
+    label = "CRIT!";
+    // Start custom cape fly animation
+    let playerPos = positions.players[currentPlayer];
+    let bossTarget = { x: bossPos.x, y: bossPos.y };
+    let flyState = {
+      phase: "arc", // single smooth arc motion
+      t: 0,
+      marioX: playerPos.x,
+      marioY: playerPos.y,
+      startX: playerPos.x,
+      startY: playerPos.y,
+      bossX: bossTarget.x,
+      bossY: bossTarget.y,
+      peakY: playerPos.y - 450, // highest point of the arc
+      impact: false,
+    };
+    player.capeFlyAnim = flyState;
+
+    function animateCapeFly() {
+      if (!player.capeFlyAnim) return;
+      let state = player.capeFlyAnim;
+      if (state.phase === "arc") {
+        // Smooth arc motion from start to boss
+        state.t += 0.04;
+
+        // Create smooth arc using quadratic bezier curve
+        // Control points: start -> peak -> boss
+        let t = Math.min(state.t, 1);
+
+        // Quadratic bezier curve formula: (1-t)²P₀ + 2(1-t)tP₁ + t²P₂
+        // P₀ = start, P₁ = peak (midpoint X, high Y), P₂ = boss
+        let midX = (state.startX + state.bossX) / 2;
+
+        let oneMinusT = 1 - t;
+        let tSquared = t * t;
+        let oneMinusTSquared = oneMinusT * oneMinusT;
+        let twoOneMinusTTimesT = 2 * oneMinusT * t;
+
+        // X follows a simple linear interpolation (slight arc)
+        state.marioX =
+          oneMinusTSquared * state.startX +
+          twoOneMinusTTimesT * midX +
+          tSquared * state.bossX;
+
+        // Y follows the arc (up then down)
+        state.marioY =
+          oneMinusTSquared * state.startY +
+          twoOneMinusTTimesT * state.peakY +
+          tSquared * state.bossY;
+
+        // Check for impact when close to boss
+        if (t >= 0.95 && !state.impact) {
+          state.impact = true;
+          // Impact: apply damage, effects, etc.
+          boss.hp -= damage;
+          boss.anim = 1;
+          boss.barShake = 1.5;
+          playSound(SFX.bossHit, 0.7);
+          showFloatingDamage(
+            bossPos.x,
+            bossPos.y - 70,
+            "-" + damage,
+            color,
+            label
+          );
+          playerDamageDealt[currentPlayer] += damage;
+          setTimeout(() => {
+            boss.anim = 0;
+            draw();
+          }, 400);
+        }
+
+        if (t >= 1) {
+          state.phase = "done";
+        }
+      } else if (state.phase === "done") {
+        // End animation
+        player.capeFlyAnim = null;
+        player.anim = 0;
+        player.mainAttackOffset = { x: 0, y: 0 };
+        player.mainSpecialCharges--;
+        updateAttackButtons();
+        setTimeout(() => {
+          if (boss.hp <= 0) {
+            boss.hp = 0;
+            gameState = "gameover";
+            turnIndicator.textContent = "Players Win!";
+            executeAttacksBtn.disabled = true;
+            bossDeathAnim = true;
+            bossDeathFrame = 0;
+            bossDeathFrameTimer = 0;
+            bossDeathY = 0;
+            bossDeathDone = false;
+            playSound(SFX.bossDeath, 0.7);
+            gameMusic.pause();
+          } else {
+            // Now execute sidekick attack
+            setTimeout(() => {
+              executeSidekickAttack();
+            }, 400);
+          }
+        }, 400);
+        return;
+      }
+      draw();
+      if (player.capeFlyAnim) {
+        requestAnimationFrame(animateCapeFly);
+      }
+    }
+    animateCapeFly();
+    return; // Skip the rest of the default animation logic
+  } else if (mainChar === "Mario_Raccoon.png") {
+    // Mario Raccoon: multiple flying projectiles with generic animation
     damage = 7 + player.teamBuff;
     color = "#ffd600";
     label = "CRIT!";
@@ -4309,8 +4446,9 @@ function doMainSpecialAttack() {
       const targetY = bossPos.y + Math.sin(angle) * 50;
       createFlyingProjectile(playerPos.x, playerPos.y, targetX, targetY);
     }
+    // Raccoon Mario uses generic animation + projectiles
   } else if (mainChar === "Mario_Giant.png") {
-    // Giant Mario: double normal, shake + giant stomp effect
+    // Giant Mario: double damage with stomp effect and generic animation
     damage = (Math.floor(Math.random() * 6) + 1 + player.teamBuff) * 2;
     color = "#bdbdbd";
     label = "SMASH!";
@@ -4318,8 +4456,9 @@ function doMainSpecialAttack() {
     // Create giant stomp effect
     const playerPos = positions.players[currentPlayer];
     createGiantStompEffect(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
+    // Giant Mario uses generic animation + effects
   } else if (mainChar === "Mario_Cat.png") {
-    // Cat Mario: normal rng + bleed + scratch projectile
+    // Cat Mario: normal rng + bleed + scratch projectile with leap animation
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#ffb300";
     label = "BLEED!";
@@ -4327,24 +4466,164 @@ function doMainSpecialAttack() {
       boss.statusEffects.bleed = { turns: 3 };
       effect = "Bleed applied!";
     }
-    // Create scratch projectile
+
+    // Start cat leap animation
     const playerPos = positions.players[currentPlayer];
-    createScratchProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
+    const bossTarget = positions.boss;
+
+    let leapState = {
+      phase: "leap", // aggressive leap motion
+      t: 0,
+      marioX: playerPos.x,
+      marioY: playerPos.y,
+      startX: playerPos.x,
+      startY: playerPos.y,
+      bossX: bossTarget.x,
+      bossY: bossTarget.y,
+      peakY: playerPos.y - 180, // lower arc than cape fly, more aggressive
+      impact: false,
+    };
+    player.catLeapAnim = leapState;
+
+    function animateCatLeap() {
+      if (!player.catLeapAnim) return;
+      let state = player.catLeapAnim;
+      if (state.phase === "leap") {
+        // Fast aggressive leap motion from start to boss
+        state.t += 0.08; // Faster than cape fly
+
+        // Create aggressive arc using quadratic bezier curve
+        let t = Math.min(state.t, 1);
+
+        // Quadratic bezier curve for cat leap
+        let midX = (state.startX + state.bossX) / 2;
+
+        let oneMinusT = 1 - t;
+        let tSquared = t * t;
+        let oneMinusTSquared = oneMinusT * oneMinusT;
+        let twoOneMinusTTimesT = 2 * oneMinusT * t;
+
+        // X follows arc motion
+        state.marioX =
+          oneMinusTSquared * state.startX +
+          twoOneMinusTTimesT * midX +
+          tSquared * state.bossX;
+
+        // Y follows arc motion with peak
+        state.marioY =
+          oneMinusTSquared * state.startY +
+          twoOneMinusTTimesT * state.peakY +
+          tSquared * state.bossY;
+
+        // Check if reached target
+        if (t >= 1.0 && !state.impact) {
+          state.impact = true;
+          // Create scratch projectile at impact point
+          createScratchProjectile(
+            state.bossX,
+            state.bossY,
+            state.bossX,
+            state.bossY
+          );
+          // Add some screen shake for impact
+          triggerScreenShake();
+
+          // Start return journey
+          state.phase = "return";
+          state.t = 0;
+        }
+      } else if (state.phase === "return") {
+        // Gentle return to original position
+        state.t += 0.06; // Slower, more graceful return
+        let t = Math.min(state.t, 1);
+
+        // Linear interpolation back to start
+        state.marioX = state.bossX + (state.startX - state.bossX) * t;
+        state.marioY = state.bossY + (state.startY - state.bossY) * t;
+
+        if (t >= 1.0) {
+          // Animation complete - now handle damage and game progression
+          player.catLeapAnim = null;
+
+          // Apply damage and effects
+          if (damage > 0) {
+            boss.hp -= damage;
+            boss.anim = 1;
+            boss.barShake = 1.5;
+            playSound(SFX.bossHit, 0.7);
+            showFloatingDamage(
+              bossPos.x,
+              bossPos.y - 70,
+              "-" + damage,
+              color,
+              label
+            );
+            playerDamageDealt[currentPlayer] += damage;
+          }
+
+          // Show effect text if any
+          if (effect) {
+            showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color);
+          }
+
+          setTimeout(() => {
+            boss.anim = 0;
+            draw();
+
+            if (boss.hp <= 0) {
+              boss.hp = 0;
+              gameState = "gameover";
+              turnIndicator.textContent = "Players Win!";
+              executeAttacksBtn.disabled = true;
+              bossDeathAnim = true;
+              bossDeathFrame = 0;
+              bossDeathFrameTimer = 0;
+              bossDeathY = 0;
+              bossDeathDone = false;
+              playSound(SFX.bossDeath, 0.7);
+              gameMusic.pause();
+            } else {
+              // Now execute sidekick attack
+              setTimeout(() => {
+                executeSidekickAttack();
+              }, 400);
+            }
+          }, 400);
+          return;
+        }
+      }
+
+      draw();
+
+      if (player.catLeapAnim) {
+        requestAnimationFrame(animateCatLeap);
+      }
+    }
+    animateCatLeap();
+
+    // Cat Mario special attack is fully handled by the custom animation
+    // Use special charge
+    player.mainSpecialCharges--;
+    updateAttackButtons();
+    return; // Don't run generic animation
   } else {
-    // Default: 7 damage + basic special effect
-    damage = 7 + player.teamBuff;
-    color = "#fff";
-    label = "SPECIAL!";
-    // Create basic special projectile
-    const playerPos = positions.players[currentPlayer];
-    createBasicSpecialProjectile(
-      playerPos.x,
-      playerPos.y,
-      bossPos.x,
-      bossPos.y
-    );
+    // Default characters: Fire, Penguin, etc. use generic animation with projectiles
+    if (mainChar === "Mario_Fire.png") {
+      damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+      color = "#ff5722";
+      label = "BURN!";
+    } else if (mainChar === "Mario_Penguin.png") {
+      damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
+      color = "#00e5ff";
+      label = "FREEZE!";
+    } else {
+      damage = 7 + player.teamBuff;
+      color = "#fff";
+      label = "SPECIAL!";
+    }
   }
 
+  // Generic special attack animation for characters without custom animations
   // Start attack animation for player 1
   if (currentPlayer === 0) {
     player1AttackAnim = true;
@@ -5723,6 +6002,9 @@ function resetAllAnimations() {
     p.mainAttackType = null;
     p.sidekickAttackType = null;
     p.teamBuff = 0;
+    // Clear special animations
+    p.capeFlyAnim = null;
+    p.catLeapAnim = null;
     // Clear sprite images
     p._spriteImg = undefined;
     p._mainSpriteImg = undefined;
