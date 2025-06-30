@@ -4804,7 +4804,7 @@ if (executeAttacksBtn)
 updateAttackButtons();
 
 function drawStatusEffectIcons(x, y, statusEffects) {
-  const iconSize = 24;
+  const iconSize = 32;
   const iconSpacing = 8;
   let currentX = x;
 
@@ -4843,8 +4843,8 @@ function drawStatusEffectIcons(x, y, statusEffects) {
           color = "#8bc34a";
           break;
         case "bleed":
-          icon = "💉";
-          color = "#ffb300";
+          icon = "🩸";
+          color = "#d32f2f";
           break;
         case "distract":
           icon = "💫";
