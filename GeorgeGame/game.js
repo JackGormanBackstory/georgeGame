@@ -1680,7 +1680,7 @@ function draw() {
     ctx.save();
     ctx.globalAlpha = fd.alpha;
     ctx.font = `bold ${
-      fd.size || 28
+      fd.size || 42
     }px 'Press Start 2P', monospace, sans-serif`;
     ctx.fillStyle = fd.color || "#ff5252";
     ctx.textAlign = "center";
@@ -2028,14 +2028,14 @@ function drawHealthBar(x, y, w, h, hp, maxHp, shake = 0) {
 }
 
 function showFloatingDamage(x, y, text, color = "#ff5252") {
-  floatingDamages.push({ x, y, text, color, alpha: 1, vy: -1, life: 60 });
+  floatingDamages.push({ x, y, text, color, alpha: 1, vy: -0.5, life: 240 });
 }
 
 function updateFloatingDamages() {
   floatingDamages.forEach((fd) => {
     fd.y += fd.vy;
     fd.life--;
-    fd.alpha = Math.max(0, fd.life / 60);
+    fd.alpha = Math.max(0, fd.life / 240);
   });
   floatingDamages = floatingDamages.filter((fd) => fd.life > 0);
   // Reduce barShake for boss and players
@@ -3619,21 +3619,6 @@ function doSpecialAttack(idx) {
   }, 400);
 }
 
-// --- Update floating damage to support label and color ---
-function showFloatingDamage(x, y, text, color = "#ff5252", label = "") {
-  floatingDamages.push({
-    x,
-    y,
-    text,
-    color,
-    label,
-    vy: -1.2,
-    life: 60,
-    alpha: 1,
-    size: label ? 38 : 28,
-  });
-}
-
 function createDragImage(file, fallbackImg) {
   // Use fallback image directly since drag images don't exist
   return fallbackImg;
@@ -4743,7 +4728,7 @@ function doSidekickSpecialAttack() {
   playSound(SFX.playerAttack, 0.5);
 
   // Attack animation with wind-up
-  let animFrames = 48;
+  let animFrames = 64;
   let pos = positions.players[currentPlayer];
   let dx = (positions.boss.x - pos.x) * 0.25;
   let dy = (positions.boss.y - pos.y) * 0.25;
