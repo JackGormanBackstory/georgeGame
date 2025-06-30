@@ -286,8 +286,26 @@ window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
 
 function getCenteredPositions() {
-  const centerX = canvas.width / 2;
-  const bossY = canvas.height / 2 - 40;
+  // Calculate background dimensions and position (same logic as in draw function)
+  let bgDrawWidth, bgDrawHeight, bgOffsetX, bgOffsetY;
+
+  if (bgImg.complete && bgImg.naturalWidth > 0) {
+    const imgAspect = bgImg.naturalWidth / bgImg.naturalHeight;
+    bgDrawHeight = canvas.height;
+    bgDrawWidth = canvas.height * imgAspect;
+    bgOffsetX = (canvas.width - bgDrawWidth) / 2;
+    bgOffsetY = 0;
+  } else {
+    // Fallback if background not loaded
+    bgDrawWidth = canvas.width;
+    bgDrawHeight = canvas.height;
+    bgOffsetX = 0;
+    bgOffsetY = 0;
+  }
+
+  // Calculate boss position relative to background texture
+  const bossX = bgOffsetX + bgDrawWidth / 2; // Center of background
+  const bossY = canvas.height * 0.5; // 60% down from top of screen
 
   // Calculate UI position
   const uiElement = document.getElementById("ui");
@@ -306,7 +324,7 @@ function getCenteredPositions() {
   const totalPlayers = 4;
   const playerSpacing = 333; // Space between each player
   const totalWidth = (totalPlayers - 1) * playerSpacing; // Total width of all players
-  const startX = centerX - totalWidth / 2; // Start position to center the group
+  const startX = bgOffsetX + bgDrawWidth / 2 - totalWidth / 2; // Start position to center the group relative to background
 
   const playerPositions = [];
   for (let i = 0; i < totalPlayers; i++) {
@@ -317,7 +335,7 @@ function getCenteredPositions() {
   }
 
   return {
-    boss: { x: centerX, y: bossY },
+    boss: { x: bossX, y: bossY },
     players: playerPositions,
   };
 }
@@ -1293,10 +1311,15 @@ function draw() {
     ctx.rotate((Math.random() - 0.5) * 0.1 * boss.anim); // shake
     ctx.translate(-bossPos.x, -bossPos.y);
   }
-  const bossDrawW = 400;
-  const bossDrawH = 400;
-  const bossAttackDrawW = 506;
-  const bossAttackDrawH = 438;
+  // Calculate boss size based on screen height while maintaining aspect ratio
+  const baseBossHeight = 400; // Base height for reference
+  const screenHeightRatio = canvas.height / 1080; // Assuming 1080p as base resolution
+  const bossScale = Math.max(0.6, Math.min(1.2, screenHeightRatio)); // Scale between 60% and 120%
+
+  const bossDrawW = 400 * bossScale;
+  const bossDrawH = 400 * bossScale;
+  const bossAttackDrawW = 506 * bossScale;
+  const bossAttackDrawH = 438 * bossScale;
   if (bossDeathAnim && !showWinScreen) {
     // Use bowserAttackSheet.png frames 0,1,2 for death
     if (
