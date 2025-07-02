@@ -13,10 +13,93 @@
   </head>
   <body>
     <div id="title-screen">
+      <video id="title-video" autoplay muted loop playsinline>
+        <source src="./videoBGLoop.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
+      <script>
+        // Set video playback speed to 50%
+        document.addEventListener("DOMContentLoaded", function () {
+          const titleVideo = document.getElementById("title-video");
+          if (titleVideo) {
+            titleVideo.playbackRate = 0.5;
+          }
+
+          // Character select video simple loop
+          const characterSelectVideo = document.getElementById(
+            "character-select-video"
+          );
+          if (characterSelectVideo) {
+            // Make video control available globally
+            window.characterSelectVideoControl = {
+              start: function () {
+                characterSelectVideo.play().catch((e) => {
+                  console.log("Character select video play failed:", e);
+                });
+              },
+              stop: function () {
+                characterSelectVideo.pause();
+              },
+            };
+          }
+
+          // Pause videos when page becomes hidden to save performance
+          document.addEventListener("visibilitychange", function () {
+            if (document.hidden) {
+              titleVideo.pause();
+              characterSelectVideo.pause();
+            } else {
+              // Only resume if on the correct screen
+              const titleScreen = document.getElementById("title-screen");
+              const characterSelectScreen = document.getElementById(
+                "character-select-screen"
+              );
+
+              if (!titleScreen.classList.contains("hide")) {
+                titleVideo
+                  .play()
+                  .catch((e) => console.log("Title video play failed:", e));
+              } else if (characterSelectScreen.style.display !== "none") {
+                characterSelectVideo
+                  .play()
+                  .catch((e) =>
+                    console.log("Character select video play failed:", e)
+                  );
+              }
+            }
+          });
+        });
+      </script>
       <canvas id="title-canvas"></canvas>
       <div id="title-text">Click to start</div>
+
+      <!-- Animated Pixelated Twinkles -->
+      <div class="twinkle small" style="top: 15%; left: 12%"></div>
+      <div class="twinkle" style="top: 8%; left: 45%"></div>
+      <div class="twinkle large bright" style="top: 25%; left: 78%"></div>
+      <div class="twinkle small" style="top: 35%; left: 23%"></div>
+      <div class="twinkle" style="top: 45%; left: 67%"></div>
+      <div class="twinkle large" style="top: 18%; left: 85%"></div>
+      <div class="twinkle small bright" style="top: 65%; left: 15%"></div>
+      <div class="twinkle" style="top: 75%; left: 52%"></div>
+      <div class="twinkle large" style="top: 28%; left: 32%"></div>
+      <div class="twinkle small" style="top: 55%; left: 88%"></div>
+      <div class="twinkle bright" style="top: 82%; left: 25%"></div>
+      <div class="twinkle large" style="top: 12%; left: 62%"></div>
+      <div class="twinkle small" style="top: 42%; left: 8%"></div>
+      <div class="twinkle" style="top: 68%; left: 73%"></div>
+      <div class="twinkle large bright" style="top: 92%; left: 45%"></div>
+      <div class="twinkle small" style="top: 22%; left: 95%"></div>
+      <div class="twinkle" style="top: 85%; left: 82%"></div>
+      <div class="twinkle large" style="top: 48%; left: 38%"></div>
+      <div class="twinkle small bright" style="top: 62%; left: 5%"></div>
+      <div class="twinkle" style="top: 38%; left: 92%"></div>
     </div>
     <div id="character-select-screen">
+      <video id="character-select-video" autoplay muted loop playsinline>
+        <source src="./characterSelect.mp4" type="video/mp4" />
+        Your browser does not support the video tag.
+      </video>
       <h2>Select 4 Character Pairs</h2>
       <p
         style="
