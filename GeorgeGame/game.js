@@ -2798,6 +2798,11 @@ function restartGame() {
   // Reset all animations and game state
   resetAllAnimations();
 
+  // Reset game state variables - this was missing!
+  currentPlayer = 0;
+  gameState = "player";
+  playersThisRound = [];
+
   updateTurnIndicator();
   // Remove old attack button reference - no longer needed with new UI
   // attackBtn.disabled = false;
@@ -2809,8 +2814,8 @@ function restartGame() {
   // Show turn indicator again
   const turnIndicatorElem = document.getElementById("turn-indicator");
   if (turnIndicatorElem) turnIndicatorElem.style.display = "";
-  // Update attack buttons
-  updateAttackButtons();
+  // Enable attack buttons for the first player - use the correct function!
+  enableAttackButtonsForPlayerTurn();
   draw();
 }
 
@@ -2900,10 +2905,11 @@ function loadGameState(saveName) {
         players[i].teamBuff = src.teamBuff || 0;
         players[i].mainSpecialCharges = src.mainSpecialCharges || 2;
         players[i].sidekickSpecialCharges = src.sidekickSpecialCharges || 2;
-        players[i].mainAttackSelected = src.mainAttackSelected || false;
-        players[i].sidekickAttackSelected = src.sidekickAttackSelected || false;
-        players[i].mainAttackType = src.mainAttackType || null;
-        players[i].sidekickAttackType = src.sidekickAttackType || null;
+        // Don't restore attack selection state - always start fresh when loading
+        players[i].mainAttackSelected = false;
+        players[i].sidekickAttackSelected = false;
+        players[i].mainAttackType = null;
+        players[i].sidekickAttackType = null;
         players[i].mainCharacter = src.mainCharacter;
         players[i].sidekickCharacter = src.sidekickCharacter;
         players[i].mainSpriteFile = src.mainSpriteFile;
@@ -2929,6 +2935,16 @@ function loadGameState(saveName) {
     playersThisRound = Array.isArray(saveData.playersThisRound)
       ? [...saveData.playersThisRound]
       : [];
+
+    // Fix: If the saved currentPlayer is dead, find the next alive player
+    if (!players[currentPlayer] || !players[currentPlayer].alive) {
+      currentPlayer = players.findIndex((p) => p.alive);
+      // If no players are alive, this is a game over state
+      if (currentPlayer === -1) {
+        gameState = "gameover";
+        currentPlayer = 0; // fallback to prevent crashes
+      }
+    }
     player1Frame = saveData.player1Frame;
     bowserFrame = saveData.bowserFrame;
     playerDamageDealt = Array.isArray(saveData.playerDamageDealt)
@@ -2936,7 +2952,8 @@ function loadGameState(saveName) {
       : [0, 0, 0, 0];
 
     updateTurnIndicator();
-    updateAttackButtons(); // Update attack buttons with character special attack names
+    // Enable attack buttons for the current player - use the correct function!
+    enableAttackButtonsForPlayerTurn();
     // Remove old attack button reference - no longer needed with new UI
     // attackBtn.disabled = gameState !== "player";
     draw();
@@ -3170,8 +3187,8 @@ function closeModal() {
   document.getElementById("save-modal").style.display = "none";
   document.getElementById("save-name").value = "";
 
-  // Reset animation states when closing modal
-  resetAllAnimations();
+  // Don't reset game state when closing modal - this was causing turn indicator to reset!
+  // resetAllAnimations();
 }
 
 // Event listeners for save/load

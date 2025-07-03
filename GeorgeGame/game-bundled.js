@@ -473,6 +473,19 @@ class SaveLoadManager {
       gameState.player1Frame = saveData.player1Frame;
       gameState.bowserFrame = saveData.bowserFrame;
 
+      // Fix: If the saved currentPlayer is dead, find the next alive player
+      if (
+        !gameState.players[gameState.currentPlayer] ||
+        !gameState.players[gameState.currentPlayer].alive
+      ) {
+        gameState.currentPlayer = gameState.players.findIndex((p) => p.alive);
+        // If no players are alive, this is a game over state
+        if (gameState.currentPlayer === -1) {
+          gameState.gameState = "gameover";
+          gameState.currentPlayer = 0; // fallback to prevent crashes
+        }
+      }
+
       return true;
     }
     return false;
@@ -1299,10 +1312,10 @@ class GameUI {
     document.getElementById("save-modal").style.display = "none";
     document.getElementById("save-name").value = "";
 
-    // Reset animation states when closing modal
-    if (window.gameController && window.gameController.animationManager) {
-      window.gameController.animationManager.reset();
-    }
+    // Don't reset game state when closing modal - this was causing turn indicator to reset!
+    // if (window.gameController && window.gameController.animationManager) {
+    //   window.gameController.animationManager.reset();
+    // }
   }
 
   updateSaveSlots() {
@@ -2682,7 +2695,10 @@ class GameController {
     );
     if (success) {
       this.updateTurnIndicator();
-      this.gameUI.setAttackButtonEnabled(this.gameState === "player");
+      // Enable attack buttons only if it's a player's turn and current player is alive
+      this.gameUI.setAttackButtonEnabled(
+        this.gameState === "player" && this.players[this.currentPlayer].alive
+      );
       this.renderer.draw(
         this.getGameState(),
         this.animationManager,
