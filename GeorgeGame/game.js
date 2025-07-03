@@ -212,10 +212,12 @@ let bowserDeathFrameTimer = 0;
 let bowserDeathY = 0;
 let bowserDeathDone = false;
 
-// --- Fireworks and win screen state (move these up to avoid ReferenceError) ---
+// --- Fireworks and screen state (move these up to avoid ReferenceError) ---
 let fireworks = [];
 let showWinScreen = false;
 let winScreenTimer = 0;
+let showDeathScreen = false;
+let deathScreenTimer = 0;
 
 // --- Special Attack Animation State ---
 let specialProjectiles = [];
@@ -2057,6 +2059,284 @@ function draw() {
     const turnIndicatorElem = document.getElementById("turn-indicator");
     if (turnIndicatorElem) turnIndicatorElem.style.display = "";
   }
+
+  // DEATH SCREEN
+  if (showDeathScreen) {
+    // Hide turn indicator
+    const turnIndicatorElem = document.getElementById("turn-indicator");
+    if (turnIndicatorElem) turnIndicatorElem.style.display = "none";
+    // Dim background
+    ctx.save();
+    ctx.globalAlpha = 0.7;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    // NO FIREWORKS for death screen
+    // YOU LOSE heading
+    ctx.save();
+    ctx.font = 'bold 64px "Press Start 2P", monospace, sans-serif';
+    ctx.fillStyle = "#ff5252";
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 10;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.shadowColor = "#000";
+    ctx.shadowBlur = 16;
+    ctx.strokeText("YOU LOSE!", canvas.width / 2, canvas.height * 0.18);
+    ctx.fillText("YOU LOSE!", canvas.width / 2, canvas.height * 0.18);
+    ctx.restore();
+
+    // Draw defeated characters - show both main and sidekick for each player
+    const midY = canvas.height * 0.48;
+    const spacing = canvas.width / 8;
+    const startX = canvas.width / 2 - 1.5 * spacing;
+
+    for (let i = 0; i < 4; i++) {
+      const p = players[i];
+      const playerX = startX + i * spacing;
+
+      // Draw main character sprite (dimmed/grayed out)
+      if (p.mainSpriteFile) {
+        let mainImg = p._mainSpriteImg;
+        if (!mainImg) {
+          mainImg = new window.Image();
+          mainImg.src = p.mainSpriteFile;
+          p._mainSpriteImg = mainImg;
+        }
+
+        let mainDrawW = 120,
+          mainDrawH = 120;
+        if (mainImg.naturalWidth && mainImg.naturalHeight) {
+          const aspect = mainImg.naturalWidth / mainImg.naturalHeight;
+          if (aspect > 1) {
+            // Wider than tall - fit to width
+            mainDrawW = 120;
+            mainDrawH = 120 / aspect;
+          } else {
+            // Taller than wide - fit to height
+            mainDrawH = 120;
+            mainDrawW = 120 * aspect;
+          }
+        }
+
+        // Special sizing for certain characters
+        if (p.mainCharacter === "Mario_Fire.png") {
+          mainDrawW = 140;
+          mainDrawH = 140;
+        } else if (p.mainCharacter === "Mario_Giant.png") {
+          mainDrawW = 160;
+          mainDrawH = 160;
+        }
+
+        // Apply defeated effect - dim and desaturate
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.filter = "grayscale(0.8) brightness(0.6)";
+
+        // Flip sprites horizontally for players 3 and 4 (indices 2 and 3)
+        if (i >= 2) {
+          ctx.save();
+          ctx.translate(playerX, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            mainImg,
+            -mainDrawW / 2 - 30,
+            midY - mainDrawH / 2,
+            mainDrawW,
+            mainDrawH
+          );
+          ctx.restore();
+        } else {
+          ctx.drawImage(
+            mainImg,
+            playerX - mainDrawW / 2 - 30,
+            midY - mainDrawH / 2,
+            mainDrawW,
+            mainDrawH
+          );
+        }
+        ctx.restore();
+      }
+
+      // Draw sidekick sprite (dimmed/grayed out)
+      if (p.sidekickSpriteFile) {
+        let sidekickImg = p._sidekickSpriteImg;
+        if (!sidekickImg) {
+          sidekickImg = new window.Image();
+          sidekickImg.src = p.sidekickSpriteFile;
+          p._sidekickSpriteImg = sidekickImg;
+        }
+
+        let sidekickDrawW = 120,
+          sidekickDrawH = 120;
+        if (sidekickImg.naturalWidth && sidekickImg.naturalHeight) {
+          const aspect = sidekickImg.naturalWidth / sidekickImg.naturalHeight;
+          if (aspect > 1) {
+            // Wider than tall - fit to width
+            sidekickDrawW = 120;
+            sidekickDrawH = 120 / aspect;
+          } else {
+            // Taller than wide - fit to height
+            sidekickDrawH = 120;
+            sidekickDrawW = 120 * aspect;
+          }
+        }
+
+        // Special sizing for certain sidekicks
+        if (p.sidekickCharacter === "Sidekick_DK.png") {
+          sidekickDrawW = 120;
+          sidekickDrawH = 120;
+        }
+
+        // Apply defeated effect - dim and desaturate
+        ctx.save();
+        ctx.globalAlpha = 0.5;
+        ctx.filter = "grayscale(0.8) brightness(0.6)";
+
+        // Flip sprites horizontally for players 3 and 4 (indices 2 and 3)
+        if (i >= 2) {
+          ctx.save();
+          ctx.translate(playerX, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(
+            sidekickImg,
+            -sidekickDrawW / 2 + 30,
+            midY - sidekickDrawH / 2,
+            sidekickDrawW,
+            sidekickDrawH
+          );
+          ctx.restore();
+        } else {
+          ctx.drawImage(
+            sidekickImg,
+            playerX - sidekickDrawW / 2 + 30,
+            midY - sidekickDrawH / 2,
+            sidekickDrawW,
+            sidekickDrawH
+          );
+        }
+        ctx.restore();
+      }
+
+      // Draw player name (dimmed)
+      ctx.save();
+      ctx.font = 'bold 20px "Press Start 2P", monospace, sans-serif';
+      ctx.fillStyle = "#888";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 6;
+      ctx.fillText(p.name || `P${i + 1}`, playerX, midY + 80);
+      ctx.restore();
+
+      // Draw damage dealt (dimmed)
+      ctx.save();
+      ctx.font = 'bold 16px "Press Start 2P", monospace, sans-serif';
+      ctx.fillStyle = "#666";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.shadowColor = "#000";
+      ctx.shadowBlur = 4;
+      ctx.fillText(`${playerDamageDealt[i]} DMG`, playerX, midY + 110);
+      ctx.restore();
+    }
+
+    // Add Return to Main Menu and Restart buttons as HTML elements styled with 'snes-btn'
+    let btnY = canvas.height / 2 + 180;
+    let btnW = 320,
+      btnH = 54;
+    // Only add buttons if not already present
+    let gameContainer = document.getElementById("game-container");
+    let mainMenuBtn = document.getElementById("death-main-menu-btn");
+    let restartBtn = document.getElementById("death-restart-btn");
+    if (!mainMenuBtn) {
+      mainMenuBtn = document.createElement("button");
+      mainMenuBtn.id = "death-main-menu-btn";
+      mainMenuBtn.className = "snes-btn";
+      mainMenuBtn.textContent = "Return to Main Menu";
+      mainMenuBtn.style.position = "absolute";
+      mainMenuBtn.style.left = `calc(50% - ${btnW / 2}px)`;
+      mainMenuBtn.style.top = `${btnY}px`;
+      mainMenuBtn.style.width = `${btnW}px`;
+      mainMenuBtn.style.height = `${btnH}px`;
+      mainMenuBtn.style.zIndex = 5002;
+      mainMenuBtn.onclick = function () {
+        showCharacterSelect();
+        setCharMenuVisibility(true);
+        setFightMenuVisibility(false);
+        showDeathScreen = false;
+        // Reset game state
+        players.forEach((p, i) => {
+          p.alive = true;
+          p.hp = 30;
+          p.displayHp = 30;
+          p.anim = 0;
+          p.statusEffects = {
+            burn: false,
+            bleed: false,
+            shield: false,
+            buff: false,
+          };
+          p.hasAttackedThisTurn = false;
+          p.sidekickHasAttackedThisTurn = false;
+          p.mainAttackSelected = false;
+          p.sidekickAttackSelected = false;
+          p.mainAttackType = null;
+          p.sidekickAttackType = null;
+          playerDamageDealt[i] = 0;
+        });
+        bowser.hp = 200;
+        bowser.displayHp = 200;
+        bowser.anim = 0;
+        bowser.statusEffects = {
+          burn: false,
+          bleed: false,
+          shield: false,
+          buff: false,
+        };
+        bowser.attackOffset = { x: 0, y: 0 };
+        bowserAttackAnim = false;
+        bowserAttackAnimFrame = 0;
+        bowserIdleFrame = 0;
+        bowserIdleFrameTimer = 0;
+        bowserDeathAnim = false;
+        bowserDeathFrame = 0;
+        bowserDeathFrameTimer = 0;
+        bowserDeathY = 0;
+        bowserDeathDone = false;
+        currentPlayer = 0;
+        playersThisRound = [];
+        gameState = "player";
+        draw();
+      };
+      gameContainer.appendChild(mainMenuBtn);
+    }
+    if (!restartBtn) {
+      restartBtn = document.createElement("button");
+      restartBtn.id = "death-restart-btn";
+      restartBtn.className = "snes-btn";
+      restartBtn.textContent = "Restart Game";
+      restartBtn.style.position = "absolute";
+      restartBtn.style.left = `calc(50% - ${btnW / 2}px)`;
+      restartBtn.style.top = `${btnY + btnH + 20}px`;
+      restartBtn.style.width = `${btnW}px`;
+      restartBtn.style.height = `${btnH}px`;
+      restartBtn.style.zIndex = 5002;
+      restartBtn.onclick = function () {
+        showDeathScreen = false;
+        restartGame();
+        draw();
+      };
+      gameContainer.appendChild(restartBtn);
+    }
+  } else {
+    // Remove death screen buttons if not showing death screen
+    let mainMenuBtn = document.getElementById("death-main-menu-btn");
+    let restartBtn = document.getElementById("death-restart-btn");
+    if (mainMenuBtn) mainMenuBtn.remove();
+    if (restartBtn) restartBtn.remove();
+  }
 }
 
 function drawHealthBar(x, y, w, h, hp, maxHp, shake = 0) {
@@ -2494,6 +2774,13 @@ function bowserAttack() {
             gameState = "gameover";
             turnIndicator.textContent = "Bowser Wins!";
             gameMusic.pause();
+            // Show death screen
+            showDeathScreen = true;
+            deathScreenTimer = 0;
+            playSound(SFX.gameOver, 0.8);
+            // Hide the UI when players lose
+            const ui = document.getElementById("ui");
+            if (ui) ui.style.display = "none";
           } else {
             // Reset for next round
             playersThisRound = [];
@@ -2779,6 +3066,9 @@ function gameLoop() {
     updateFireworks();
     winScreenTimer++;
   }
+  if (showDeathScreen) {
+    deathScreenTimer++;
+  }
   animationFrameId = requestAnimationFrame(gameLoop);
 }
 
@@ -2883,6 +3173,8 @@ function loadGameState(saveName) {
     // Reset win/celebration state
     showWinScreen = false;
     winScreenTimer = 0;
+    showDeathScreen = false;
+    deathScreenTimer = 0;
     bowserDeathAnim = false;
     bowserDeathFrame = 0;
     bowserDeathFrameTimer = 0;
@@ -3429,6 +3721,7 @@ const SFX = {
   bowserDeath: SOUND_PATH + "Boss Defeat.wav",
   bowserExplode: SOUND_PATH + "Boss Explode.wav",
   win: SOUND_PATH + "World Complete.wav",
+  gameOver: SOUND_PATH + "gameOver.mp3",
   select: SOUND_PATH + "Select.wav",
   pause: SOUND_PATH + "Pause.wav",
   wrong: SOUND_PATH + "Wrong.wav",
@@ -5945,6 +6238,8 @@ function resetAllAnimations() {
   bowserDeathDone = false;
   showWinScreen = false;
   winScreenTimer = 0;
+  showDeathScreen = false;
+  deathScreenTimer = 0;
   fireworks = [];
   fireBroFrame = 0;
   fireBroAnimTimer = 0;

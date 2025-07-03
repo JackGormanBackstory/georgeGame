@@ -79,6 +79,7 @@ const SFX = {
   bowserDeath: SOUND_PATH + "Boss Defeat.wav",
   bowserExplode: SOUND_PATH + "Boss Explode.wav",
   win: SOUND_PATH + "World Complete.wav",
+  gameOver: SOUND_PATH + "gameOver.mp3",
   select: SOUND_PATH + "Select.wav",
   pause: SOUND_PATH + "Pause.wav",
   wrong: SOUND_PATH + "Wrong.wav",
@@ -699,10 +700,12 @@ class AnimationManager {
     this.bowserDeathY = 0;
     this.bowserDeathDone = false;
 
-    // Fireworks and win screen state
+    // Fireworks and screen state
     this.fireworks = [];
     this.showWinScreen = false;
     this.winScreenTimer = 0;
+    this.showDeathScreen = false;
+    this.deathScreenTimer = 0;
   }
 
   updatePlayer1Animation() {
@@ -844,6 +847,8 @@ class AnimationManager {
     this.bowserDeathDone = false;
     this.showWinScreen = false;
     this.winScreenTimer = 0;
+    this.showDeathScreen = false;
+    this.deathScreenTimer = 0;
     this.fireworks = [];
   }
 }
@@ -1821,6 +1826,11 @@ class Renderer {
     if (animationManager.showWinScreen) {
       this.drawWinScreen(gameState.players, animationManager);
     }
+
+    // Draw death screen
+    if (animationManager.showDeathScreen) {
+      this.drawDeathScreen(gameState.players);
+    }
   }
 
   drawBackground() {
@@ -2367,6 +2377,152 @@ class Renderer {
       }
     }
   }
+
+  drawDeathScreen(players) {
+    // Hide turn indicator
+    const turnIndicatorElem = document.getElementById("turn-indicator");
+    if (turnIndicatorElem) turnIndicatorElem.style.display = "none";
+
+    // Dim background
+    this.ctx.save();
+    this.ctx.globalAlpha = 0.7;
+    this.ctx.fillStyle = "#000";
+    this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.globalAlpha = 1;
+    this.ctx.restore();
+
+    // NO FIREWORKS for death screen
+
+    // YOU LOSE heading
+    this.ctx.save();
+    this.ctx.font = 'bold 64px "Press Start 2P", monospace, sans-serif';
+    this.ctx.fillStyle = "#ff5252";
+    this.ctx.strokeStyle = "#000";
+    this.ctx.lineWidth = 10;
+    this.ctx.textAlign = "center";
+    this.ctx.textBaseline = "top";
+    this.ctx.shadowColor = "#000";
+    this.ctx.shadowBlur = 16;
+    this.ctx.strokeText(
+      "YOU LOSE!",
+      this.canvas.width / 2,
+      this.canvas.height * 0.18
+    );
+    this.ctx.fillText(
+      "YOU LOSE!",
+      this.canvas.width / 2,
+      this.canvas.height * 0.18
+    );
+    this.ctx.restore();
+
+    // Draw defeated characters
+    this.drawDefeatedCharacters(players);
+
+    // Add Return to Main Menu and Restart buttons as HTML elements styled with 'snes-btn'
+    let btnY = this.canvas.height / 2 + 180;
+    let btnW = 320,
+      btnH = 54;
+    // Only add buttons if not already present
+    let gameContainer = document.getElementById("game-container");
+    let mainMenuBtn = document.getElementById("death-main-menu-btn");
+    let restartBtn = document.getElementById("death-restart-btn");
+    if (!mainMenuBtn) {
+      mainMenuBtn = document.createElement("button");
+      mainMenuBtn.id = "death-main-menu-btn";
+      mainMenuBtn.className = "snes-btn";
+      mainMenuBtn.textContent = "Return to Main Menu";
+      mainMenuBtn.style.position = "absolute";
+      mainMenuBtn.style.left = `calc(50% - ${btnW / 2}px)`;
+      mainMenuBtn.style.top = `${btnY}px`;
+      mainMenuBtn.style.width = `${btnW}px`;
+      mainMenuBtn.style.height = `${btnH}px`;
+      mainMenuBtn.style.zIndex = 5002;
+      mainMenuBtn.onclick = function () {
+        if (window.gameController) {
+          window.gameController.returnToMainMenu();
+        }
+      };
+      gameContainer.appendChild(mainMenuBtn);
+    }
+    if (!restartBtn) {
+      restartBtn = document.createElement("button");
+      restartBtn.id = "death-restart-btn";
+      restartBtn.className = "snes-btn";
+      restartBtn.textContent = "Restart Game";
+      restartBtn.style.position = "absolute";
+      restartBtn.style.left = `calc(50% - ${btnW / 2}px)`;
+      restartBtn.style.top = `${btnY + btnH + 20}px`;
+      restartBtn.style.width = `${btnW}px`;
+      restartBtn.style.height = `${btnH}px`;
+      restartBtn.style.zIndex = 5002;
+      restartBtn.onclick = function () {
+        if (window.gameController) {
+          window.gameController.animationManager.showDeathScreen = false;
+          window.gameController.startFight();
+        }
+      };
+      gameContainer.appendChild(restartBtn);
+    }
+  }
+
+  drawDefeatedCharacters(players) {
+    const midY = this.canvas.height * 0.48;
+    const spacing = this.canvas.width / 8;
+    const startX = this.canvas.width / 2 - 1.5 * spacing;
+
+    for (let i = 0; i < 4; i++) {
+      const p = players[i];
+      if (p.spriteFile) {
+        let img = p._spriteImg;
+        if (!img) {
+          img = new window.Image();
+          img.src = p.spriteFile;
+          p._spriteImg = img;
+        }
+
+        let drawW = 140,
+          drawH = 140;
+        if (img.naturalWidth && img.naturalHeight) {
+          const aspect = img.naturalWidth / img.naturalHeight;
+          if (aspect > 1) {
+            drawH = 140 / aspect;
+          } else {
+            drawW = 140 * aspect;
+          }
+        }
+
+        // Apply defeated effect - dim and desaturate
+        this.ctx.save();
+        this.ctx.globalAlpha = 0.5;
+        this.ctx.filter = "grayscale(0.8) brightness(0.6)";
+
+        this.ctx.drawImage(
+          img,
+          startX + i * spacing - drawW / 2,
+          midY - drawH / 2,
+          drawW,
+          drawH
+        );
+
+        this.ctx.restore();
+
+        // Player name (dimmed)
+        this.ctx.save();
+        this.ctx.font = 'bold 20px "Press Start 2P", monospace, sans-serif';
+        this.ctx.fillStyle = "#888";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "top";
+        this.ctx.shadowColor = "#000";
+        this.ctx.shadowBlur = 6;
+        this.ctx.fillText(
+          p.name || `P${i + 1}`,
+          startX + i * spacing,
+          midY + 80
+        );
+        this.ctx.restore();
+      }
+    }
+  }
 }
 
 class GameController {
@@ -2645,6 +2801,13 @@ class GameController {
     this.gameUI.setAttackButtonEnabled(false);
     this.gameUI.setSpecialAttackButtonEnabled(false);
     this.audioManager.stopAllMusic();
+    // Show death screen
+    this.animationManager.showDeathScreen = true;
+    this.animationManager.deathScreenTimer = 0;
+    this.audioManager.playSFX("gameOver", 0.8);
+    // Hide the UI when players lose
+    const ui = document.getElementById("ui");
+    if (ui) ui.style.display = "none";
   }
 
   nextPlayer() {
@@ -2705,6 +2868,9 @@ class GameController {
       if (this.animationManager.showWinScreen) {
         this.animationManager.updateFireworks();
         this.animationManager.winScreenTimer++;
+      }
+      if (this.animationManager.showDeathScreen) {
+        this.animationManager.deathScreenTimer++;
       }
 
       this.renderer.draw(
@@ -2793,6 +2959,12 @@ class GameController {
     this.playersThisRound = [];
     this.floatingDamageManager.clear();
     this.animationManager.reset();
+
+    // Remove death screen buttons if present
+    let mainMenuBtn = document.getElementById("death-main-menu-btn");
+    let restartBtn = document.getElementById("death-restart-btn");
+    if (mainMenuBtn) mainMenuBtn.remove();
+    if (restartBtn) restartBtn.remove();
 
     // Show character select
     this.characterSelectUI.reset();
