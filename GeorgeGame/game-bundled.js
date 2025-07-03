@@ -1,8 +1,8 @@
 // Game Constants
 const PLAYER_COLORS = ["#4fc3f7", "#81c784", "#ffd54f", "#e57373"];
-const BOSS_COLOR = "#b39ddb";
+const BOWSER_COLOR = "#b39ddb";
 const PLAYER_MAX_HP = 30;
-const BOSS_MAX_HP = 100;
+const BOWSER_MAX_HP = 100;
 
 // Sprite Configuration
 const SPRITES_FOLDER = "sprites/";
@@ -53,16 +53,16 @@ const PLAYER1_IDLE_FRAMES = 2;
 const PLAYER1_ATTACK_FRAMES = 5;
 
 // Boss Animation Constants
-const BOSS_FRAME_W = 626.35;
-const BOSS_FRAME_H = 698.61;
-const BOSS_IDLE_FRAMES = 6;
-const BOSS_IDLE_ROW = 2;
-const BOSS_IDLE_FRAME_DURATIONS = [18, 60, 24, 18, 32, 18];
+const BOWSER_FRAME_W = 626.35;
+const BOWSER_FRAME_H = 698.61;
+const BOWSER_IDLE_FRAMES = 6;
+const BOWSER_IDLE_ROW = 2;
+const BOWSER_IDLE_FRAME_DURATIONS = [18, 60, 24, 18, 32, 18];
 
 // Boss Attack Animation Constants
-const BOSS_ATTACK_FRAME_W = 791.82;
-const BOSS_ATTACK_FRAME_H = 686;
-const BOSS_ATTACK_FRAMES = 4;
+const BOWSER_ATTACK_FRAME_W = 791.82;
+const BOWSER_ATTACK_FRAME_H = 686;
+const BOWSER_ATTACK_FRAMES = 4;
 
 // Game Title
 const GAME_TITLE = "SUPER SMASH SHOWDOWN";
@@ -70,16 +70,14 @@ const GAME_TITLE = "SUPER SMASH SHOWDOWN";
 // Sound Effects Path
 const SOUND_PATH = "sounds/";
 
-
-
 const SFX = {
   playerAttack: SOUND_PATH + "Squeak.wav",
-  bossAttack: SOUND_PATH + "Castle Explode.wav",
+  bowserAttack: SOUND_PATH + "Castle Explode.wav",
   playerHit: SOUND_PATH + "Boss Hit.wav",
   bossHit: SOUND_PATH + "Bowser Hit.wav",
   playerDeath: SOUND_PATH + "Enemy Tumble.wav",
-  bossDeath: SOUND_PATH + "Boss Defeat.wav",
-  bossExplode: SOUND_PATH + "Boss Explode.wav",
+  bowserDeath: SOUND_PATH + "Boss Defeat.wav",
+  bowserExplode: SOUND_PATH + "Boss Explode.wav",
   win: SOUND_PATH + "World Complete.wav",
   select: SOUND_PATH + "Select.wav",
   pause: SOUND_PATH + "Pause.wav",
@@ -88,8 +86,6 @@ const SFX = {
   clank2: SOUND_PATH + "Clank 2.wav",
   pipe: SOUND_PATH + "Pipe.wav",
 };
-
-
 
 class Player {
   constructor(index, name = "", spriteFile = "") {
@@ -198,12 +194,10 @@ class Player {
   }
 }
 
-
-
-class Boss {
+class Bowser {
   constructor() {
-    this.hp = BOSS_MAX_HP;
-    this.displayHp = BOSS_MAX_HP;
+    this.hp = BOWSER_MAX_HP;
+    this.displayHp = BOWSER_MAX_HP;
     this.alive = true;
     this.anim = 0;
     this.barShake = 0;
@@ -212,8 +206,8 @@ class Boss {
   }
 
   reset() {
-    this.hp = BOSS_MAX_HP;
-    this.displayHp = BOSS_MAX_HP;
+    this.hp = BOWSER_MAX_HP;
+    this.displayHp = BOWSER_MAX_HP;
     this.alive = true;
     this.anim = 0;
     this.barShake = 0;
@@ -318,8 +312,6 @@ class Boss {
     this.statusEffects = data.statusEffects || {};
   }
 }
-
-
 
 class AudioManager {
   constructor() {
@@ -442,12 +434,12 @@ class SaveLoadManager {
   saveGameState(saveName, gameState) {
     const saveData = {
       players: gameState.players.map((player) => player.toJSON()),
-      boss: gameState.boss.toJSON(),
+      bowser: gameState.bowser.toJSON(),
       currentPlayer: gameState.currentPlayer,
       gameState: gameState.gameState,
       playersThisRound: [...gameState.playersThisRound],
       player1Frame: gameState.player1Frame,
-      bossFrame: gameState.bossFrame,
+      bowserFrame: gameState.bowserFrame,
       timestamp: Date.now(),
       saveName: saveName,
     };
@@ -469,8 +461,8 @@ class SaveLoadManager {
         }
       });
 
-      // Load boss
-      gameState.boss.fromJSON(saveData.boss);
+      // Load bowser
+      gameState.bowser.fromJSON(saveData.bowser);
 
       // Load game state
       gameState.currentPlayer = saveData.currentPlayer;
@@ -479,7 +471,7 @@ class SaveLoadManager {
         ? [...saveData.playersThisRound]
         : [];
       gameState.player1Frame = saveData.player1Frame;
-      gameState.bossFrame = saveData.bossFrame;
+      gameState.bowserFrame = saveData.bowserFrame;
 
       return true;
     }
@@ -523,8 +515,6 @@ class SaveLoadManager {
   }
 }
 
-
-
 class SpecialAttackService {
   constructor(audioManager) {
     this.audioManager = audioManager;
@@ -532,7 +522,7 @@ class SpecialAttackService {
 
   doSpecialAttack(player, boss, positions, gameState) {
     const charName = player.name || `Player ${player.index + 1}`;
-    const bossPos = positions.boss;
+    const bowserPos = positions.bowser;
     let damage = 0;
     let color = "#fff";
     let label = "SPECIAL!";
@@ -543,17 +533,17 @@ class SpecialAttackService {
       damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
       color = "#ff5722";
       label = "BURN!";
-      if (!boss.statusEffects.burn) {
-        boss.addStatusEffect("burn", 3);
+      if (!bowser.statusEffects.burn) {
+        bowser.addStatusEffect("burn", 3);
         effect = "Burn applied!";
       }
     } else if (/penguin/i.test(charName)) {
       damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
       color = "#00e5ff";
       label = "FREEZE!";
-      if (!boss.statusEffects.freeze) {
-        boss.addStatusEffect("freeze", 1);
-        effect = "Boss frozen!";
+      if (!bowser.statusEffects.freeze) {
+        bowser.addStatusEffect("freeze", 1);
+        effect = "Bowser frozen!";
       }
     } else if (/cape|raccoon|flying/i.test(charName)) {
       damage = 7 + player.teamBuff;
@@ -568,16 +558,16 @@ class SpecialAttackService {
       damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
       color = "#ffb300";
       label = "BLEED!";
-      if (!boss.statusEffects.bleed) {
-        boss.addStatusEffect("bleed", 3);
+      if (!bowser.statusEffects.bleed) {
+        bowser.addStatusEffect("bleed", 3);
         effect = "Bleed applied!";
       }
     } else if (/wario/i.test(charName)) {
       damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
       color = "#8bc34a";
       label = "POISON!";
-      if (!boss.statusEffects.poison) {
-        boss.addStatusEffect("poison", 3);
+      if (!bowser.statusEffects.poison) {
+        bowser.addStatusEffect("poison", 3);
         effect = "Poison applied!";
       }
     } else if (/toad/i.test(charName)) {
@@ -587,9 +577,9 @@ class SpecialAttackService {
       gameState.players.forEach((pl) => {
         pl.teamBuff = (pl.teamBuff || 0) + 1;
       });
-      if (!boss.statusEffects.distract) {
-        boss.addStatusEffect("distract", 1);
-        effect = "Boss distracted!";
+      if (!bowser.statusEffects.distract) {
+        bowser.addStatusEffect("distract", 1);
+        effect = "Bowser distracted!";
       }
     } else if (/waluigi/i.test(charName)) {
       damage = 7 + player.teamBuff;
@@ -617,10 +607,10 @@ class SpecialAttackService {
       let damage2 = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
       color = "#66bb6a";
       label = "DOUBLE!";
-      boss.takeDamage(damage2);
+      bowser.takeDamage(damage2);
       gameState.showFloatingDamage(
-        bossPos.x,
-        bossPos.y - 110,
+        bowserPos.x,
+        bowserPos.y - 110,
         "-" + damage2,
         color,
         label
@@ -633,11 +623,11 @@ class SpecialAttackService {
 
     // Apply damage if not Peach/Toad
     if (damage > 0) {
-      boss.takeDamage(damage);
+      bowser.takeDamage(damage);
       this.audioManager.playSFX("bossHit", 0.7);
       gameState.showFloatingDamage(
-        bossPos.x,
-        bossPos.y - 70,
+        bowserPos.x,
+        bowserPos.y - 70,
         "-" + damage,
         color,
         label
@@ -647,8 +637,8 @@ class SpecialAttackService {
     // Show effect text if any
     if (effect) {
       gameState.showFloatingDamage(
-        bossPos.x,
-        bossPos.y - 120,
+        bowserPos.x,
+        bowserPos.y - 120,
         effect,
         color,
         label
@@ -673,30 +663,28 @@ class SpecialAttackService {
   }
 }
 
-
-
 class AnimationManager {
   constructor() {
     this.fireBroFrame = 0;
     this.fireBroAnimTimer = 0;
     this.booFrame = 0;
     this.booAnimTimer = 0;
-    this.bossFrame = 0;
+    this.bowserFrame = 0;
     this.player1Frame = 0;
     this.player1AnimTimer = 0;
     this.player1AttackAnim = false;
     this.player1AttackAnimFrame = 0;
-    this.bossAttackAnim = false;
-    this.bossAttackAnimFrame = 0;
-    this.bossIdleFrame = 0;
-    this.bossIdleFrameTimer = 0;
+    this.bowserAttackAnim = false;
+    this.bowserAttackAnimFrame = 0;
+    this.bowserIdleFrame = 0;
+    this.bowserIdleFrameTimer = 0;
 
     // Boss death animation state
-    this.bossDeathAnim = false;
-    this.bossDeathFrame = 0;
-    this.bossDeathFrameTimer = 0;
-    this.bossDeathY = 0;
-    this.bossDeathDone = false;
+    this.bowserDeathAnim = false;
+    this.bowserDeathFrame = 0;
+    this.bowserDeathFrameTimer = 0;
+    this.bowserDeathY = 0;
+    this.bowserDeathDone = false;
 
     // Fireworks and win screen state
     this.fireworks = [];
@@ -712,56 +700,60 @@ class AnimationManager {
   }
 
   updateBossAnimation() {
-    if (this.bossDeathAnim) {
+    if (this.bowserDeathAnim) {
       this.updateBossDeathAnimation();
-    } else if (!this.bossAttackAnim) {
+    } else if (!this.bowserAttackAnim) {
       this.updateBossIdleAnimation();
     } else {
-      this.bossIdleFrameTimer = 0;
+      this.bowserIdleFrameTimer = 0;
     }
   }
 
   updateBossDeathAnimation() {
-    if (!this.bossDeathDone) {
-      this.bossDeathFrameTimer++;
-      if (this.bossDeathFrame < 2 && this.bossDeathFrameTimer > 48) {
-        this.bossDeathFrame++;
-        this.bossDeathFrameTimer = 0;
-      } else if (this.bossDeathFrame === 2 && this.bossDeathFrameTimer > 80) {
-        this.bossDeathDone = true;
-        this.bossDeathFrameTimer = 0;
+    if (!this.bowserDeathDone) {
+      this.bowserDeathFrameTimer++;
+      if (this.bowserDeathFrame < 2 && this.bowserDeathFrameTimer > 48) {
+        this.bowserDeathFrame++;
+        this.bowserDeathFrameTimer = 0;
+      } else if (
+        this.bowserDeathFrame === 2 &&
+        this.bowserDeathFrameTimer > 80
+      ) {
+        this.bowserDeathDone = true;
+        this.bowserDeathFrameTimer = 0;
       }
     } else {
-      if (this.bossDeathY < 900) {
+      if (this.bowserDeathY < 900) {
         if (
-          Math.floor(this.bossDeathY / 60) !==
-          Math.floor((this.bossDeathY + 2) / 60)
+          Math.floor(this.bowserDeathY / 60) !==
+          Math.floor((this.bowserDeathY + 2) / 60)
         ) {
-          if (!this.bossDeathAnim._pause) {
-            this.bossDeathAnim._pause = true;
+          if (!this.bowserDeathAnim._pause) {
+            this.bowserDeathAnim._pause = true;
             setTimeout(() => {
-              this.bossDeathAnim._pause = false;
+              this.bowserDeathAnim._pause = false;
             }, 700);
           }
         }
-        if (!this.bossDeathAnim._pause) {
-          this.bossDeathY += 1.0;
+        if (!this.bowserDeathAnim._pause) {
+          this.bowserDeathY += 1.0;
         }
       }
     }
   }
 
   updateBossIdleAnimation() {
-    this.bossIdleFrameTimer++;
+    this.bowserIdleFrameTimer++;
     if (
-      this.bossIdleFrameTimer >= BOSS_IDLE_FRAME_DURATIONS[this.bossIdleFrame]
+      this.bowserIdleFrameTimer >=
+      BOWSER_IDLE_FRAME_DURATIONS[this.bowserIdleFrame]
     ) {
-      this.bossIdleFrame = this.getNextBossIdleFrame(this.bossIdleFrame);
-      this.bossIdleFrameTimer = 0;
+      this.bowserIdleFrame = this.getNextBowserIdleFrame(this.bowserIdleFrame);
+      this.bowserIdleFrameTimer = 0;
     }
   }
 
-  getNextBossIdleFrame(current) {
+  getNextBowserIdleFrame(current) {
     const weights = [0.12, 0.32, 0.12, 0.12, 0.24, 0.08];
     let r = Math.random();
     let acc = 0;
@@ -773,7 +765,7 @@ class AnimationManager {
         return i;
       }
     }
-    return (current + 1) % BOSS_IDLE_FRAMES;
+    return (current + 1) % BOWSER_IDLE_FRAMES;
   }
 
   updateFireworks() {
@@ -826,17 +818,17 @@ class AnimationManager {
   reset() {
     this.fireBroFrame = 0;
     this.booFrame = 0;
-    this.bossFrame = 0;
+    this.bowserFrame = 0;
     this.player1Frame = 0;
     this.player1AttackAnim = false;
     this.player1AttackAnimFrame = 0;
-    this.bossAttackAnim = false;
-    this.bossAttackAnimFrame = 0;
-    this.bossDeathAnim = false;
-    this.bossDeathFrame = 0;
-    this.bossDeathFrameTimer = 0;
-    this.bossDeathY = 0;
-    this.bossDeathDone = false;
+    this.bowserAttackAnim = false;
+    this.bowserAttackAnimFrame = 0;
+    this.bowserDeathAnim = false;
+    this.bowserDeathFrame = 0;
+    this.bowserDeathFrameTimer = 0;
+    this.bowserDeathY = 0;
+    this.bowserDeathDone = false;
     this.showWinScreen = false;
     this.winScreenTimer = 0;
     this.fireworks = [];
@@ -929,8 +921,6 @@ class FloatingDamageManager {
     this.floatingDamages = [];
   }
 }
-
-
 
 class CharacterSelectUI {
   constructor(audioManager) {
@@ -1258,8 +1248,8 @@ class GameUI {
     if (gameState === "player") {
       const name = players[currentPlayer].name || `Player ${currentPlayer + 1}`;
       this.turnIndicator.textContent = `${name}'s Turn`;
-    } else if (gameState === "boss") {
-      this.turnIndicator.textContent = `Boss Attacking!`;
+    } else if (gameState === "bowser") {
+      this.turnIndicator.textContent = `Bowser Attacking!`;
     }
   }
 
@@ -1308,6 +1298,11 @@ class GameUI {
   closeModal() {
     document.getElementById("save-modal").style.display = "none";
     document.getElementById("save-name").value = "";
+
+    // Reset animation states when closing modal
+    if (window.gameController && window.gameController.animationManager) {
+      window.gameController.animationManager.reset();
+    }
   }
 
   updateSaveSlots() {
@@ -1319,15 +1314,72 @@ class GameUI {
     saveInfos.forEach((saveInfo) => {
       const slot = document.createElement("div");
       slot.className = "save-slot";
-      slot.innerHTML = `
-        <div>
-          <strong>${saveInfo.name}</strong><br>
-          <small>${saveInfo.date.toLocaleString()}</small>
-        </div>
-        <button class="delete-save" onclick="window.gameUI.deleteSave('${
-          saveInfo.name
-        }')">Delete</button>
+
+      // Get the save data to access character information
+      const saves = this.saveLoadManager.getSaves();
+      const saveData = saves[saveInfo.name];
+
+      // Create the info section
+      const infoDiv = document.createElement("div");
+      infoDiv.className = "save-slot-info";
+
+      // Basic save info
+      const basicInfo = document.createElement("div");
+      basicInfo.innerHTML = `
+        <strong>${saveInfo.name}</strong><br>
+        <small>${saveInfo.date.toLocaleString()}</small>
       `;
+      infoDiv.appendChild(basicInfo);
+
+      // Character information
+      if (saveData && saveData.players) {
+        const charactersDiv = document.createElement("div");
+        charactersDiv.className = "save-slot-characters";
+
+        saveData.players.forEach((player, index) => {
+          if (player && (player.mainCharacter || player.sidekickCharacter)) {
+            const playerDiv = document.createElement("div");
+            playerDiv.className = "save-slot-character";
+
+            // Create character display
+            let characterDisplay = "";
+            if (player.mainSpriteFile) {
+              characterDisplay += `<img src="${player.mainSpriteFile}" alt="Main Character">`;
+            }
+            if (player.sidekickSpriteFile) {
+              characterDisplay += `<img src="${player.sidekickSpriteFile}" alt="Sidekick">`;
+            }
+
+            const characterName = player.name || `Player ${index + 1}`;
+            characterDisplay += `<div class="save-slot-character-name">${characterName}</div>`;
+
+            playerDiv.innerHTML = characterDisplay;
+            charactersDiv.appendChild(playerDiv);
+          }
+        });
+
+        if (charactersDiv.children.length > 0) {
+          infoDiv.appendChild(charactersDiv);
+        }
+      }
+
+      slot.appendChild(infoDiv);
+
+      // Actions section
+      const actionsDiv = document.createElement("div");
+      actionsDiv.className = "save-slot-actions";
+
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "delete-save";
+      deleteBtn.textContent = "Delete";
+      deleteBtn.onclick = (e) => {
+        e.stopPropagation();
+        this.deleteSave(saveInfo.name);
+      };
+      actionsDiv.appendChild(deleteBtn);
+
+      slot.appendChild(actionsDiv);
+
       slot.onclick = (e) => {
         if (!e.target.classList.contains("delete-save")) {
           if (window.gameController) {
@@ -1336,6 +1388,7 @@ class GameUI {
           this.closeModal();
         }
       };
+
       saveSlots.appendChild(slot);
     });
   }
@@ -1350,12 +1403,57 @@ class GameUI {
     saveInfos.forEach((saveInfo) => {
       const slot = document.createElement("div");
       slot.className = "save-slot";
-      slot.innerHTML = `
-        <div>
-          <strong>${saveInfo.name}</strong><br>
-          <small>${saveInfo.date.toLocaleString()}</small>
-        </div>
+
+      // Get the save data to access character information
+      const saves = this.saveLoadManager.getSaves();
+      const saveData = saves[saveInfo.name];
+
+      // Create the info section
+      const infoDiv = document.createElement("div");
+      infoDiv.className = "save-slot-info";
+
+      // Basic save info
+      const basicInfo = document.createElement("div");
+      basicInfo.innerHTML = `
+        <strong>${saveInfo.name}</strong><br>
+        <small>${saveInfo.date.toLocaleString()}</small>
       `;
+      infoDiv.appendChild(basicInfo);
+
+      // Character information
+      if (saveData && saveData.players) {
+        const charactersDiv = document.createElement("div");
+        charactersDiv.className = "save-slot-characters";
+
+        saveData.players.forEach((player, index) => {
+          if (player && (player.mainCharacter || player.sidekickCharacter)) {
+            const playerDiv = document.createElement("div");
+            playerDiv.className = "save-slot-character";
+
+            // Create character display
+            let characterDisplay = "";
+            if (player.mainSpriteFile) {
+              characterDisplay += `<img src="${player.mainSpriteFile}" alt="Main Character">`;
+            }
+            if (player.sidekickSpriteFile) {
+              characterDisplay += `<img src="${player.sidekickSpriteFile}" alt="Sidekick">`;
+            }
+
+            const characterName = player.name || `Player ${index + 1}`;
+            characterDisplay += `<div class="save-slot-character-name">${characterName}</div>`;
+
+            playerDiv.innerHTML = characterDisplay;
+            charactersDiv.appendChild(playerDiv);
+          }
+        });
+
+        if (charactersDiv.children.length > 0) {
+          infoDiv.appendChild(charactersDiv);
+        }
+      }
+
+      slot.appendChild(infoDiv);
+
       slot.onclick = () => {
         const alreadySelected = slot.classList.contains("selected");
         saveSlotsSave
@@ -1372,6 +1470,7 @@ class GameUI {
           if (warn) warn.classList.remove("inactive");
         }
       };
+
       saveSlotsSave.appendChild(slot);
     });
   }
@@ -1398,8 +1497,6 @@ class GameUI {
     document.getElementById("game-container").style.display = "none";
   }
 }
-
-
 
 class TitleScreenUI {
   constructor(audioManager) {
@@ -1559,8 +1656,6 @@ class TitleScreenUI {
   }
 }
 
-
-
 class Renderer {
   constructor() {
     this.canvas = document.getElementById("game-canvas");
@@ -1570,11 +1665,11 @@ class Renderer {
     this.bgImg = new Image();
     this.bgImg.src = "bowserbackground.png";
 
-    this.bossBowserImg = new Image();
-    this.bossBowserImg.src = "bowserSprite.png";
+    this.bowserBowserImg = new Image();
+    this.bowserBowserImg.src = "bowserSprite.png";
 
-    this.bossAttackImg = new Image();
-    this.bossAttackImg.src = "bowserAttackSheet.png";
+    this.bowserAttackImg = new Image();
+    this.bowserAttackImg.src = "bowserAttackSheet.png";
 
     this.player1Img = new Image();
     this.player1Img.src = "goombaAI.png";
@@ -1594,12 +1689,12 @@ class Renderer {
 
   getCenteredPositions() {
     const centerX = this.canvas.width / 2;
-    const bossY = this.canvas.height / 2 - 40;
+    const bowserY = this.canvas.height / 2 - 40;
     const playerY = this.canvas.height * 0.76;
     const spacing = this.canvas.width / 7;
 
     return {
-      boss: { x: centerX, y: bossY },
+      bowser: { x: centerX, y: bowserY },
       players: [
         { x: centerX - 1.5 * spacing, y: playerY },
         { x: centerX - 0.5 * spacing, y: playerY },
@@ -1620,11 +1715,11 @@ class Renderer {
 
     const positions = this.getCenteredPositions();
 
-    // Draw boss health bar
+    // Draw bowser health bar
     this.drawBossHealthBar(gameState.boss);
 
     // Draw boss
-    this.drawBoss(gameState.boss, positions.boss, animationManager);
+    this.drawBoss(gameState.boss, positions.bowser, animationManager);
 
     // Draw players
     if (!animationManager.showWinScreen) {
@@ -1673,32 +1768,32 @@ class Renderer {
   }
 
   drawBossHealthBar(boss) {
-    const bossBarW = Math.min(this.canvas.width * 0.6, 600);
-    const bossBarH = 32;
-    const bossBarX = (this.canvas.width - bossBarW) / 2;
-    const bossBarY = 36;
+    const bowserBarW = Math.min(this.canvas.width * 0.6, 600);
+    const bowserBarH = 32;
+    const bowserBarX = (this.canvas.width - bowserBarW) / 2;
+    const bowserBarY = 36;
 
     this.ctx.save();
     let shakeX = 0,
       shakeY = 0;
-    if (boss.barShake > 0) {
-      shakeX = (Math.random() - 0.5) * 24 * boss.barShake;
-      shakeY = (Math.random() - 0.5) * 24 * boss.barShake;
+    if (bowser.barShake > 0) {
+      shakeX = (Math.random() - 0.5) * 24 * bowser.barShake;
+      shakeY = (Math.random() - 0.5) * 24 * bowser.barShake;
     }
     this.ctx.translate(shakeX, shakeY);
 
     this.ctx.fillStyle = "#222";
-    this.ctx.fillRect(bossBarX, bossBarY, bossBarW, bossBarH);
+    this.ctx.fillRect(bowserBarX, bowserBarY, bowserBarW, bowserBarH);
     this.ctx.fillStyle = "#e53935";
     this.ctx.fillRect(
-      bossBarX,
-      bossBarY,
-      (bossBarW * Math.max(0, boss.displayHp)) / BOSS_MAX_HP,
-      bossBarH
+      bowserBarX,
+      bowserBarY,
+      (bowserBarW * Math.max(0, bowser.displayHp)) / BOWSER_MAX_HP,
+      bowserBarH
     );
     this.ctx.lineWidth = 4;
     this.ctx.strokeStyle = "#fff";
-    this.ctx.strokeRect(bossBarX, bossBarY, bossBarW, bossBarH);
+    this.ctx.strokeRect(bowserBarX, bowserBarY, bowserBarW, bowserBarH);
 
     // Health number
     this.ctx.font = 'bold 1.2em "Press Start 2P", monospace, sans-serif';
@@ -1706,15 +1801,15 @@ class Renderer {
     this.ctx.textAlign = "right";
     this.ctx.textBaseline = "middle";
     this.ctx.fillText(
-      `${Math.max(0, Math.round(boss.displayHp))}/${BOSS_MAX_HP}`,
-      bossBarX + bossBarW - 12,
-      bossBarY + bossBarH / 2
+      `${Math.max(0, Math.round(bowser.displayHp))}/${BOWSER_MAX_HP}`,
+      bowserBarX + bowserBarW - 12,
+      bowserBarY + bowserBarH / 2
     );
 
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.restore();
 
-    // Boss Name
+    // Bowser Name
     this.ctx.save();
     this.ctx.font = 'bold 2em "Press Start 2P", monospace, sans-serif';
     this.ctx.fillStyle = "#fff";
@@ -1722,102 +1817,112 @@ class Renderer {
     this.ctx.textBaseline = "top";
     this.ctx.shadowColor = "#000";
     this.ctx.shadowBlur = 6;
-    this.ctx.fillText("Boss", this.canvas.width / 2, bossBarY + bossBarH + 10);
+    this.ctx.fillText(
+      "Bowser",
+      this.canvas.width / 2,
+      bowserBarY + bowserBarH + 10
+    );
     this.ctx.restore();
   }
 
   drawBoss(boss, position, animationManager) {
     this.ctx.save();
-    let bossPos = {
-      x: position.x + (boss.attackOffset?.x || 0),
-      y: position.y + (boss.attackOffset?.y || 0) + animationManager.bossDeathY,
+    let bowserPos = {
+      x: position.x + (bowser.attackOffset?.x || 0),
+      y:
+        position.y +
+        (bowser.attackOffset?.y || 0) +
+        animationManager.bowserDeathY,
     };
 
-    if (boss.anim > 0) {
-      this.ctx.translate(bossPos.x, bossPos.y);
-      this.ctx.rotate((Math.random() - 0.5) * 0.1 * boss.anim);
-      this.ctx.translate(-bossPos.x, -bossPos.y);
+    if (bowser.anim > 0) {
+      this.ctx.translate(bowserPos.x, bowserPos.y);
+      this.ctx.rotate((Math.random() - 0.5) * 0.1 * bowser.anim);
+      this.ctx.translate(-bowserPos.x, -bowserPos.y);
     }
 
-    const bossDrawW = 400;
-    const bossDrawH = 400;
-    const bossAttackDrawW = 506;
-    const bossAttackDrawH = 438;
+    const bowserDrawW = 400;
+    const bowserDrawH = 400;
+    const bowserAttackDrawW = 506;
+    const bowserAttackDrawH = 438;
 
-    if (animationManager.bossDeathAnim && !animationManager.showWinScreen) {
+    if (animationManager.bowserDeathAnim && !animationManager.showWinScreen) {
       if (
-        animationManager.bossDeathY <= 420 &&
-        this.bossAttackImg.complete &&
-        this.bossAttackImg.naturalWidth > 0
+        animationManager.bowserDeathY <= 420 &&
+        this.bowserAttackImg.complete &&
+        this.bowserAttackImg.naturalWidth > 0
       ) {
-        let frame = animationManager.bossDeathFrame;
+        let frame = animationManager.bowserDeathFrame;
         this.ctx.drawImage(
-          this.bossAttackImg,
-          Math.round(frame * BOSS_ATTACK_FRAME_W),
+          this.bowserAttackImg,
+          Math.round(frame * BOWSER_ATTACK_FRAME_W),
           0,
-          Math.round(BOSS_ATTACK_FRAME_W),
-          Math.round(BOSS_ATTACK_FRAME_H),
-          bossPos.x - bossAttackDrawW / 2,
-          bossPos.y - bossAttackDrawH / 2,
-          bossAttackDrawW,
-          bossAttackDrawH
+          Math.round(BOWSER_ATTACK_FRAME_W),
+          Math.round(BOWSER_ATTACK_FRAME_H),
+          bowserPos.x - bowserAttackDrawW / 2,
+          bowserPos.y - bowserAttackDrawH / 2,
+          bowserAttackDrawW,
+          bowserAttackDrawH
         );
       }
     } else if (
-      animationManager.bossDeathAnim &&
+      animationManager.bowserDeathAnim &&
       animationManager.showWinScreen
     ) {
-      if (this.bossAttackImg.complete && this.bossAttackImg.naturalWidth > 0) {
+      if (
+        this.bowserAttackImg.complete &&
+        this.bowserAttackImg.naturalWidth > 0
+      ) {
         this.ctx.drawImage(
-          this.bossAttackImg,
-          Math.round(2 * BOSS_ATTACK_FRAME_W),
+          this.bowserAttackImg,
+          Math.round(2 * BOWSER_ATTACK_FRAME_W),
           0,
-          Math.round(BOSS_ATTACK_FRAME_W),
-          Math.round(BOSS_ATTACK_FRAME_H),
-          bossPos.x - bossAttackDrawW / 2,
-          bossPos.y - bossAttackDrawH / 2,
-          bossAttackDrawW,
-          bossAttackDrawH
+          Math.round(BOWSER_ATTACK_FRAME_W),
+          Math.round(BOWSER_ATTACK_FRAME_H),
+          bowserPos.x - bowserAttackDrawW / 2,
+          bowserPos.y - bowserAttackDrawH / 2,
+          bowserAttackDrawW,
+          bowserAttackDrawH
         );
       }
     } else if (
-      animationManager.bossAttackAnim &&
-      this.bossAttackImg.complete &&
-      this.bossAttackImg.naturalWidth > 0
+      animationManager.bowserAttackAnim &&
+      this.bowserAttackImg.complete &&
+      this.bowserAttackImg.naturalWidth > 0
     ) {
-      let frame = animationManager.bossAttackAnimFrame;
+      let frame = animationManager.bowserAttackAnimFrame;
       this.ctx.drawImage(
-        this.bossAttackImg,
-        Math.round(frame * BOSS_ATTACK_FRAME_W),
+        this.bowserAttackImg,
+        Math.round(frame * BOWSER_ATTACK_FRAME_W),
         0,
-        Math.round(BOSS_ATTACK_FRAME_W),
-        Math.round(BOSS_ATTACK_FRAME_H),
-        bossPos.x - bossAttackDrawW / 2,
-        bossPos.y - bossAttackDrawH / 2,
-        bossAttackDrawW,
-        bossAttackDrawH
+        Math.round(BOWSER_ATTACK_FRAME_W),
+        Math.round(BOWSER_ATTACK_FRAME_H),
+        bowserPos.x - bowserAttackDrawW / 2,
+        bowserPos.y - bowserAttackDrawH / 2,
+        bowserAttackDrawW,
+        bowserAttackDrawH
       );
     } else if (
-      this.bossBowserImg.complete &&
-      this.bossBowserImg.naturalWidth > 0
+      this.bowserBowserImg.complete &&
+      this.bowserBowserImg.naturalWidth > 0
     ) {
-      let frame = animationManager.bossIdleFrame;
-      let row = BOSS_IDLE_ROW;
+      let frame = animationManager.bowserIdleFrame;
+      let row = BOWSER_IDLE_ROW;
       this.ctx.drawImage(
-        this.bossBowserImg,
-        Math.round(frame * BOSS_FRAME_W),
-        Math.round(row * BOSS_FRAME_H),
-        Math.round(BOSS_FRAME_W),
-        Math.round(BOSS_FRAME_H),
-        bossPos.x - bossDrawW / 2,
-        bossPos.y - bossDrawH / 2,
-        bossDrawW,
-        bossDrawH
+        this.bowserBowserImg,
+        Math.round(frame * BOWSER_FRAME_W),
+        Math.round(row * BOWSER_FRAME_H),
+        Math.round(BOWSER_FRAME_W),
+        Math.round(BOWSER_FRAME_H),
+        bowserPos.x - bowserDrawW / 2,
+        bowserPos.y - bowserDrawH / 2,
+        bowserDrawW,
+        bowserDrawH
       );
     } else {
       this.ctx.beginPath();
-      this.ctx.arc(bossPos.x, bossPos.y, 60, 0, Math.PI * 2);
-      this.ctx.fillStyle = BOSS_COLOR;
+      this.ctx.arc(bowserPos.x, bowserPos.y, 60, 0, Math.PI * 2);
+      this.ctx.fillStyle = BOWSER_COLOR;
       this.ctx.fill();
       this.ctx.lineWidth = 4;
       this.ctx.strokeStyle = "#fff";
@@ -1965,20 +2070,47 @@ class Renderer {
       );
     }
 
+    // Determine color based on health level
+    let barColor = "#76ff03"; // Green (default)
+    let shadowColor = "#4caf50"; // Green shadow
+    let shouldFlash = false;
+
+    if (hp <= 10) {
+      // Red with flashing for very low health
+      barColor = "#ff1744";
+      shadowColor = "#d32f2f";
+      shouldFlash = true;
+    } else if (hp <= 20) {
+      // Orange for low health
+      barColor = "#ff9800";
+      shadowColor = "#f57c00";
+    }
+
+    // Apply flashing effect for very low health
+    if (shouldFlash) {
+      const flashIntensity = Math.sin(Date.now() / 150) * 0.3 + 0.7; // Flash between 0.4 and 1.0
+      this.ctx.globalAlpha = flashIntensity;
+    }
+
     this.ctx.save();
-    this.ctx.shadowColor = "#4caf50";
+    this.ctx.shadowColor = shadowColor;
     this.ctx.shadowBlur = 16;
-    this.ctx.fillStyle = "#76ff03";
+    this.ctx.fillStyle = barColor;
     this.ctx.fillRect(x, y, (w * Math.max(0, hp)) / maxHp, h);
     this.ctx.restore();
 
     this.ctx.fillStyle = "#222";
     this.ctx.fillRect(x, y, w, h);
-    this.ctx.fillStyle = "#76ff03";
+    this.ctx.fillStyle = barColor;
     this.ctx.fillRect(x, y, (w * Math.max(0, hp)) / maxHp, h);
     this.ctx.strokeStyle = "#fff";
     this.ctx.lineWidth = 2;
     this.ctx.strokeRect(x, y, w, h);
+
+    // Reset alpha for text
+    if (shouldFlash) {
+      this.ctx.globalAlpha = 1;
+    }
 
     this.ctx.font = `${h * 1.5}px sans-serif`;
     this.ctx.fillStyle = "#fff";
@@ -2155,20 +2287,6 @@ class Renderer {
   }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class GameController {
   constructor() {
     // Initialize services
@@ -2189,14 +2307,14 @@ class GameController {
 
     // Game state
     this.players = [new Player(0), new Player(1), new Player(2), new Player(3)];
-    this.boss = new Boss();
+    this.bowser = new Bowser();
     this.currentPlayer = 0;
-    this.gameState = "player"; // 'player', 'boss', 'gameover'
+    this.gameState = "player"; // 'player', 'bowser', 'gameover'
     this.playersThisRound = [];
 
     // Animation state
     this.player1Frame = 0;
-    this.bossFrame = 0;
+    this.bowserFrame = 0;
 
     // Make controller globally accessible
     window.gameController = this;
@@ -2256,7 +2374,7 @@ class GameController {
       this.players[i].reset();
     }
 
-    this.boss.reset();
+    this.bowser.reset();
     this.currentPlayer = 0;
     this.gameState = "player";
     this.playersThisRound = [];
@@ -2286,18 +2404,18 @@ class GameController {
 
     // Simple attack logic
     const damage = Math.floor(Math.random() * 6) + 1;
-    this.boss.takeDamage(damage);
+    this.bowser.takeDamage(damage);
     this.audioManager.playSFX("bossHit", 0.5);
 
     const positions = this.renderer.getCenteredPositions();
     this.floatingDamageManager.showFloatingDamage(
-      positions.boss.x,
-      positions.boss.y - 70,
+      positions.bowser.x,
+      positions.bowser.y - 70,
       "-" + damage
     );
 
     setTimeout(() => {
-      if (this.boss.hp <= 0) {
+      if (this.bowser.hp <= 0) {
         this.handleBossDefeat();
       } else {
         this.playersThisRound.push(this.currentPlayer);
@@ -2308,8 +2426,8 @@ class GameController {
           .filter((i) => i !== null);
 
         if (this.playersThisRound.length >= alivePlayers.length) {
-          this.gameState = "boss";
-          setTimeout(() => this.bossAttack(), 800);
+          this.gameState = "bowser";
+          setTimeout(() => this.bowserAttack(), 800);
         } else {
           this.nextPlayer();
           this.updateTurnIndicator();
@@ -2329,13 +2447,13 @@ class GameController {
 
     this.specialAttackService.doSpecialAttack(
       this.players[this.currentPlayer],
-      this.boss,
+      this.bowser,
       positions,
       this
     );
 
     setTimeout(() => {
-      if (this.boss.hp <= 0) {
+      if (this.bowser.hp <= 0) {
         this.handleBossDefeat();
       } else {
         this.playersThisRound.push(this.currentPlayer);
@@ -2346,8 +2464,8 @@ class GameController {
           .filter((i) => i !== null);
 
         if (this.playersThisRound.length >= alivePlayers.length) {
-          this.gameState = "boss";
-          setTimeout(() => this.bossAttack(), 800);
+          this.gameState = "bowser";
+          setTimeout(() => this.bowserAttack(), 800);
         } else {
           this.nextPlayer();
           this.updateTurnIndicator();
@@ -2357,7 +2475,7 @@ class GameController {
     }, 400);
   }
 
-  bossAttack() {
+  bowserAttack() {
     // Add special charge to all players
     this.players.forEach((player) => {
       player.addSpecialCharge();
@@ -2377,7 +2495,7 @@ class GameController {
       if (!chosen.includes(idx)) chosen.push(idx);
     }
 
-    this.audioManager.playSFX("bossAttack", 0.6);
+    this.audioManager.playSFX("bowserAttack", 0.6);
 
     setTimeout(() => {
       const positions = this.renderer.getCenteredPositions();
@@ -2414,7 +2532,7 @@ class GameController {
   }
 
   handleBossDefeat() {
-    this.boss.hp = 0;
+    this.bowser.hp = 0;
     this.gameState = "gameover";
     this.gameUI.updateTurnIndicator(
       this.gameState,
@@ -2425,13 +2543,13 @@ class GameController {
     this.gameUI.setSpecialAttackButtonEnabled(false);
 
     // Start boss death animation
-    this.animationManager.bossDeathAnim = true;
-    this.animationManager.bossDeathFrame = 0;
-    this.animationManager.bossDeathFrameTimer = 0;
-    this.animationManager.bossDeathY = 0;
-    this.animationManager.bossDeathDone = false;
+    this.animationManager.bowserDeathAnim = true;
+    this.animationManager.bowserDeathFrame = 0;
+    this.animationManager.bowserDeathFrameTimer = 0;
+    this.animationManager.bowserDeathY = 0;
+    this.animationManager.bowserDeathDone = false;
 
-    this.audioManager.playSFX("bossDeath", 0.7);
+    this.audioManager.playSFX("bowserDeath", 0.7);
     this.audioManager.stopAllMusic();
   }
 
@@ -2490,8 +2608,8 @@ class GameController {
       this.cloudManager.updateClouds();
 
       // Update health bars
-      this.boss.updateHealthBar();
-      this.boss.updateBarShake();
+      this.bowser.updateHealthBar();
+      this.bowser.updateBarShake();
       this.players.forEach((p) => {
         p.updateHealthBar();
         p.updateBarShake();
@@ -2516,19 +2634,19 @@ class GameController {
 
       // Check for win screen trigger
       if (
-        this.animationManager.bossDeathAnim &&
+        this.animationManager.bowserDeathAnim &&
         !this.animationManager.showWinScreen &&
-        this.animationManager.bossDeathY > 200
+        this.animationManager.bowserDeathY > 200
       ) {
         this.animationManager.showWinScreen = true;
         this.animationManager.winScreenTimer = 0;
         this.animationManager.fireworks = [];
-        this.audioManager.playSFX("bossExplode", 0.7);
+        this.audioManager.playSFX("bowserExplode", 0.7);
         setTimeout(() => this.audioManager.playSFX("win", 0.7), 1200);
-        this.audioManager.playSFX("bossDefeat", 0.8);
+        this.audioManager.playSFX("bowserDefeat", 0.8);
         this.audioManager.stopAllMusic();
 
-        // Hide the UI when boss dies
+        // Hide the UI when bowser dies
         const ui = document.getElementById("ui");
         if (ui) ui.style.display = "none";
 
@@ -2546,7 +2664,7 @@ class GameController {
   getGameState() {
     return {
       players: this.players,
-      boss: this.boss,
+      bowser: this.bowser,
       currentPlayer: this.currentPlayer,
       gameState: this.gameState,
       playersThisRound: this.playersThisRound,
@@ -2584,7 +2702,7 @@ class GameController {
   returnToMainMenu() {
     // Reset game state
     this.players.forEach((p) => p.reset());
-    this.boss.reset();
+    this.bowser.reset();
     this.currentPlayer = 0;
     this.gameState = "player";
     this.playersThisRound = [];
@@ -2602,10 +2720,7 @@ class GameController {
   }
 }
 
-
-
 // Initialize the game when the DOM is loaded
 document.addEventListener("DOMContentLoaded", () => {
   new GameController();
 });
-

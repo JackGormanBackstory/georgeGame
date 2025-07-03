@@ -26,11 +26,11 @@ const executeAttacksBtn = document.getElementById("execute-attacks-btn");
 const turnIndicator = document.getElementById("turn-indicator");
 
 const PLAYER_COLORS = ["#4fc3f7", "#81c784", "#ffd54f", "#e57373"];
-const BOSS_COLOR = "#b39ddb";
-const BOSS_POSITION = { x: 400, y: 420 };
+const BOWSER_COLOR = "#b39ddb";
+const BOWSER_POSITION = { x: 400, y: 420 };
 
 const PLAYER_MAX_HP = 30;
-const BOSS_MAX_HP = 200;
+const BOWSER_MAX_HP = 200;
 
 let players = [
   {
@@ -129,9 +129,9 @@ let players = [
     sidekickAttackType: null,
   },
 ];
-let boss = {
-  hp: BOSS_MAX_HP,
-  displayHp: BOSS_MAX_HP,
+let bowser = {
+  hp: BOWSER_MAX_HP,
+  displayHp: BOWSER_MAX_HP,
   alive: true,
   anim: 0,
   barShake: 0,
@@ -140,7 +140,7 @@ let boss = {
 };
 
 let currentPlayer = 0;
-let gameState = "player"; // 'player', 'boss', 'gameover'
+let gameState = "player"; // 'player', 'bowser', 'gameover'
 let floatingDamages = [];
 let playersThisRound = [];
 
@@ -164,33 +164,33 @@ const PLAYER1_ATTACK_FRAMES = 5; // second row
 const bgImg = new Image();
 bgImg.src = "bowserbackground.png";
 
-// Load boss bowser image
-const bossBowserImg = new Image();
-bossBowserImg.src = "bowserSprite.png";
+// Load bowser bowser image
+const bowserBowserImg = new Image();
+bowserBowserImg.src = "bowserSprite.png";
 
-// Load boss attack sheet
-const bossAttackImg = new Image();
-bossAttackImg.src = "bowserAttackSheet.png";
+// Load bowser attack sheet
+const bowserAttackImg = new Image();
+bowserAttackImg.src = "bowserAttackSheet.png";
 
-// Sprite sheet info for boss bowser
-const BOSS_FRAME_W = 626.35;
-const BOSS_FRAME_H = 698.61;
-const BOSS_IDLE_FRAMES = 6;
-const BOSS_IDLE_ROW = 2;
-const BOSS_IDLE_FRAME_DURATIONS = [18, 60, 24, 18, 32, 18];
-let bossIdleFrameTimer = 0;
+// Sprite sheet info for bowser
+const BOWSER_FRAME_W = 626.35;
+const BOWSER_FRAME_H = 698.61;
+const BOWSER_IDLE_FRAMES = 6;
+const BOWSER_IDLE_ROW = 2;
+const BOWSER_IDLE_FRAME_DURATIONS = [18, 60, 24, 18, 32, 18];
+let bowserIdleFrameTimer = 0;
 
 // Sprite sheet info for attack
-const BOSS_ATTACK_FRAME_W = 791.82;
-const BOSS_ATTACK_FRAME_H = 686;
-const BOSS_ATTACK_FRAMES = 4;
+const BOWSER_ATTACK_FRAME_W = 791.82;
+const BOWSER_ATTACK_FRAME_H = 686;
+const BOWSER_ATTACK_FRAMES = 4;
 
 // Animation state
 let fireBroFrame = 0;
 let fireBroAnimTimer = 0;
 let booFrame = 0;
 let booAnimTimer = 0;
-let bossFrame = 0;
+let bowserFrame = 0;
 
 // Animation state for player 1
 let player1Frame = 0;
@@ -201,16 +201,16 @@ let player1AttackAnimFrame = 0;
 // Damage tracking for each player
 let playerDamageDealt = [0, 0, 0, 0];
 
-let bossAttackAnim = false;
-let bossAttackAnimFrame = 0;
-let bossIdleFrame = 0;
+let bowserAttackAnim = false;
+let bowserAttackAnimFrame = 0;
+let bowserIdleFrame = 0;
 
-// --- Boss death animation state (move these up to avoid ReferenceError) ---
-let bossDeathAnim = false;
-let bossDeathFrame = 0;
-let bossDeathFrameTimer = 0;
-let bossDeathY = 0;
-let bossDeathDone = false;
+// --- Bowser death animation state (move these up to avoid ReferenceError) ---
+let bowserDeathAnim = false;
+let bowserDeathFrame = 0;
+let bowserDeathFrameTimer = 0;
+let bowserDeathY = 0;
+let bowserDeathDone = false;
 
 // --- Fireworks and win screen state (move these up to avoid ReferenceError) ---
 let fireworks = [];
@@ -316,9 +316,9 @@ function getCenteredPositions() {
     bgOffsetY = 0;
   }
 
-  // Calculate boss position relative to background texture
-  const bossX = bgOffsetX + bgDrawWidth / 2; // Center of background
-  const bossY = canvas.height * 0.5; // 60% down from top of screen
+  // Calculate bowser position relative to background texture
+  const bowserX = bgOffsetX + bgDrawWidth / 2; // Center of background
+  const bowserY = canvas.height * 0.5; // 60% down from top of screen
 
   // Calculate UI position
   const uiElement = document.getElementById("ui");
@@ -348,7 +348,7 @@ function getCenteredPositions() {
   }
 
   return {
-    boss: { x: bossX, y: bossY },
+    bowser: { x: bowserX, y: bowserY },
     players: playerPositions,
   };
 }
@@ -1218,18 +1218,18 @@ document.getElementById("start-fight").onclick = () => {
     players[i].sidekickAttackType = null;
   }
 
-  boss.hp = BOSS_MAX_HP;
-  boss.displayHp = BOSS_MAX_HP;
-  boss.alive = true;
-  boss.anim = 0;
-  boss.barShake = 0;
-  boss.attackOffset = { x: 0, y: 0 };
-  boss.statusEffects = {};
+  bowser.hp = BOWSER_MAX_HP;
+  bowser.displayHp = BOWSER_MAX_HP;
+  bowser.alive = true;
+  bowser.anim = 0;
+  bowser.barShake = 0;
+  bowser.attackOffset = { x: 0, y: 0 };
+  bowser.statusEffects = {};
 
   // Reset all animation states for fight start
-  bossAttackAnim = false;
-  bossAttackAnimFrame = 0;
-  bossDeathAnim = false;
+  bowserAttackAnim = false;
+  bowserAttackAnimFrame = 0;
+  bowserDeathAnim = false;
   player1AttackAnim = false;
   player1AttackAnimFrame = 0;
 
@@ -1279,49 +1279,53 @@ function draw() {
   });
   const positions = getCenteredPositions();
 
-  // Draw Boss Health Bar (large, red, top of screen)
-  const bossBarW = Math.min(canvas.width * 0.6, 600);
-  const bossBarH = 32;
-  const bossBarX = (canvas.width - bossBarW) / 2;
-  const bossBarY = 36;
+  // Draw Bowser Health Bar (large, red, top of screen)
+  const bowserBarW = Math.min(canvas.width * 0.6, 600);
+  const bowserBarH = 32;
+  const bowserBarX = (canvas.width - bowserBarW) / 2;
+  const bowserBarY = 36;
   // Red health bar with white border and shake
   ctx.save();
   let shakeX = 0,
     shakeY = 0;
-  if (boss.barShake > 0) {
-    shakeX = (Math.random() - 0.5) * 24 * boss.barShake;
-    shakeY = (Math.random() - 0.5) * 24 * boss.barShake;
+  if (bowser.barShake > 0) {
+    shakeX = (Math.random() - 0.5) * 24 * bowser.barShake;
+    shakeY = (Math.random() - 0.5) * 24 * bowser.barShake;
   }
   ctx.translate(shakeX, shakeY);
   ctx.fillStyle = "#222";
-  ctx.fillRect(bossBarX, bossBarY, bossBarW, bossBarH);
+  ctx.fillRect(bowserBarX, bowserBarY, bowserBarW, bowserBarH);
   ctx.fillStyle = "#e53935";
   ctx.fillRect(
-    bossBarX,
-    bossBarY,
-    (bossBarW * Math.max(0, boss.displayHp)) / BOSS_MAX_HP,
-    bossBarH
+    bowserBarX,
+    bowserBarY,
+    (bowserBarW * Math.max(0, bowser.displayHp)) / BOWSER_MAX_HP,
+    bowserBarH
   );
   ctx.lineWidth = 4;
   ctx.strokeStyle = "#fff";
-  ctx.strokeRect(bossBarX, bossBarY, bossBarW, bossBarH);
+  ctx.strokeRect(bowserBarX, bowserBarY, bowserBarW, bowserBarH);
   // Health number
   ctx.font = 'bold 1.2em "Press Start 2P", monospace, sans-serif';
   ctx.fillStyle = "#fff";
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   ctx.fillText(
-    `${Math.max(0, Math.round(boss.displayHp))}/${BOSS_MAX_HP}`,
-    bossBarX + bossBarW - 12,
-    bossBarY + bossBarH / 2
+    `${Math.max(0, Math.round(bowser.displayHp))}/${BOWSER_MAX_HP}`,
+    bowserBarX + bowserBarW - 12,
+    bowserBarY + bowserBarH / 2
   );
 
   // Draw status effect icons to the right of the health bar
-  drawStatusEffectIcons(bossBarX + bossBarW + 8, bossBarY, boss.statusEffects);
+  drawStatusEffectIcons(
+    bowserBarX + bowserBarW + 8,
+    bowserBarY,
+    bowser.statusEffects
+  );
 
   ctx.setTransform(1, 0, 0, 1, 0, 0); // reset transform
   ctx.restore();
-  // Boss Name (large, under health bar)
+  // Bowser Name (large, under health bar)
   ctx.save();
   ctx.font = 'bold 2em "Press Start 2P", monospace, sans-serif';
   ctx.fillStyle = "#fff";
@@ -1329,119 +1333,119 @@ function draw() {
   ctx.textBaseline = "top";
   ctx.shadowColor = "#000";
   ctx.shadowBlur = 6;
-  ctx.fillText("Boss", canvas.width / 2, bossBarY + bossBarH + 10);
+  ctx.fillText("Bowser", canvas.width / 2, bowserBarY + bowserBarH + 10);
   ctx.restore();
 
-  // Draw Boss (Bowser)
+  // Draw Bowser (Bowser)
   ctx.save();
-  let bossPos = {
-    x: positions.boss.x + (boss.attackOffset?.x || 0),
-    y: positions.boss.y + (boss.attackOffset?.y || 0) + bossDeathY,
+  let bowserPos = {
+    x: positions.bowser.x + (bowser.attackOffset?.x || 0),
+    y: positions.bowser.y + (bowser.attackOffset?.y || 0) + bowserDeathY,
   };
 
   // --- SCALE LOGIC START ---
   let scale = 1.0;
-  if (bossAttackAnim) {
+  if (bowserAttackAnim) {
     // Calculate how far Bowser is from his start position (0 = start, 1 = max lunge)
     const maxDist = 120; // Tune this to match your max lunge distance
     const dist = Math.sqrt(
-      (boss.attackOffset?.x || 0) ** 2 + (boss.attackOffset?.y || 0) ** 2
+      (bowser.attackOffset?.x || 0) ** 2 + (bowser.attackOffset?.y || 0) ** 2
     );
     // Scale from 1.0 to 1.3 at max lunge
     scale = 1.0 + 1.0 * Math.min(dist / maxDist, 1);
   }
-  ctx.translate(bossPos.x, bossPos.y);
+  ctx.translate(bowserPos.x, bowserPos.y);
   ctx.scale(scale, scale);
-  ctx.translate(-bossPos.x, -bossPos.y);
+  ctx.translate(-bowserPos.x, -bowserPos.y);
   // --- SCALE LOGIC END ---
 
-  if (boss.anim > 0) {
-    ctx.translate(bossPos.x, bossPos.y);
-    ctx.rotate((Math.random() - 0.5) * 0.1 * boss.anim); // shake
-    ctx.translate(-bossPos.x, -bossPos.y);
+  if (bowser.anim > 0) {
+    ctx.translate(bowserPos.x, bowserPos.y);
+    ctx.rotate((Math.random() - 0.5) * 0.1 * bowser.anim); // shake
+    ctx.translate(-bowserPos.x, -bowserPos.y);
   }
-  // Calculate boss size based on screen height while maintaining aspect ratio
-  const baseBossHeight = 400; // Base height for reference
+  // Calculate bowser size based on screen height while maintaining aspect ratio
+  const baseBowserHeight = 400; // Base height for reference
   const screenHeightRatio = canvas.height / 1080; // Assuming 1080p as base resolution
-  const bossScale = Math.max(0.6, Math.min(1.2, screenHeightRatio)); // Scale between 60% and 120%
+  const bowserScale = Math.max(0.6, Math.min(1.2, screenHeightRatio)); // Scale between 60% and 120%
 
-  const bossDrawW = 400 * bossScale;
-  const bossDrawH = 400 * bossScale;
-  const bossAttackDrawW = 506 * bossScale;
-  const bossAttackDrawH = 438 * bossScale;
-  if (bossDeathAnim && !showWinScreen) {
+  const bowserDrawW = 400 * bowserScale;
+  const bowserDrawH = 400 * bowserScale;
+  const bowserAttackDrawW = 506 * bowserScale;
+  const bowserAttackDrawH = 438 * bowserScale;
+  if (bowserDeathAnim && !showWinScreen) {
     // Use bowserAttackSheet.png frames 0,1,2 for death
     if (
-      bossDeathY <= 420 &&
-      bossAttackImg.complete &&
-      bossAttackImg.naturalWidth > 0
+      bowserDeathY <= 420 &&
+      bowserAttackImg.complete &&
+      bowserAttackImg.naturalWidth > 0
     ) {
-      let frame = bossDeathFrame;
+      let frame = bowserDeathFrame;
       ctx.drawImage(
-        bossAttackImg,
-        Math.round(frame * BOSS_ATTACK_FRAME_W),
+        bowserAttackImg,
+        Math.round(frame * BOWSER_ATTACK_FRAME_W),
         0,
-        Math.round(BOSS_ATTACK_FRAME_W),
-        Math.round(BOSS_ATTACK_FRAME_H),
-        bossPos.x - bossAttackDrawW / 2,
-        bossPos.y - bossAttackDrawH / 2,
-        bossAttackDrawW,
-        bossAttackDrawH
+        Math.round(BOWSER_ATTACK_FRAME_W),
+        Math.round(BOWSER_ATTACK_FRAME_H),
+        bowserPos.x - bowserAttackDrawW / 2,
+        bowserPos.y - bowserAttackDrawH / 2,
+        bowserAttackDrawW,
+        bowserAttackDrawH
       );
     }
     // Don't return; allow win screen to draw
-  } else if (bossDeathAnim && showWinScreen) {
+  } else if (bowserDeathAnim && showWinScreen) {
     // During the drop after win screen, always use frame 2 (third frame)
-    if (bossAttackImg.complete && bossAttackImg.naturalWidth > 0) {
+    if (bowserAttackImg.complete && bowserAttackImg.naturalWidth > 0) {
       ctx.drawImage(
-        bossAttackImg,
-        Math.round(2 * BOSS_ATTACK_FRAME_W),
+        bowserAttackImg,
+        Math.round(2 * BOWSER_ATTACK_FRAME_W),
         0,
-        Math.round(BOSS_ATTACK_FRAME_W),
-        Math.round(BOSS_ATTACK_FRAME_H),
-        bossPos.x - bossAttackDrawW / 2,
-        bossPos.y - bossAttackDrawH / 2,
-        bossAttackDrawW,
-        bossAttackDrawH
+        Math.round(BOWSER_ATTACK_FRAME_W),
+        Math.round(BOWSER_ATTACK_FRAME_H),
+        bowserPos.x - bowserAttackDrawW / 2,
+        bowserPos.y - bowserAttackDrawH / 2,
+        bowserAttackDrawW,
+        bowserAttackDrawH
       );
     }
   } else if (
-    bossAttackAnim &&
-    bossAttackImg.complete &&
-    bossAttackImg.naturalWidth > 0
+    bowserAttackAnim &&
+    bowserAttackImg.complete &&
+    bowserAttackImg.naturalWidth > 0
   ) {
     // Draw attack animation from bowserAttackSheet.png
-    let frame = bossAttackAnimFrame;
+    let frame = bowserAttackAnimFrame;
     ctx.drawImage(
-      bossAttackImg,
-      Math.round(frame * BOSS_ATTACK_FRAME_W),
+      bowserAttackImg,
+      Math.round(frame * BOWSER_ATTACK_FRAME_W),
       0,
-      Math.round(BOSS_ATTACK_FRAME_W),
-      Math.round(BOSS_ATTACK_FRAME_H),
-      bossPos.x - bossAttackDrawW / 2,
-      bossPos.y - bossAttackDrawH / 2,
-      bossAttackDrawW,
-      bossAttackDrawH
+      Math.round(BOWSER_ATTACK_FRAME_W),
+      Math.round(BOWSER_ATTACK_FRAME_H),
+      bowserPos.x - bowserAttackDrawW / 2,
+      bowserPos.y - bowserAttackDrawH / 2,
+      bowserAttackDrawW,
+      bowserAttackDrawH
     );
-  } else if (bossBowserImg.complete && bossBowserImg.naturalWidth > 0) {
+  } else if (bowserBowserImg.complete && bowserBowserImg.naturalWidth > 0) {
     // Draw idle or death from bowserSprite.png
-    let frame = bossIdleFrame;
-    let row = BOSS_IDLE_ROW;
+    let frame = bowserIdleFrame;
+    let row = BOWSER_IDLE_ROW;
     ctx.drawImage(
-      bossBowserImg,
-      Math.round(frame * BOSS_FRAME_W),
-      Math.round(row * BOSS_FRAME_H),
-      Math.round(BOSS_FRAME_W),
-      Math.round(BOSS_FRAME_H),
-      bossPos.x - bossDrawW / 2,
-      bossPos.y - bossDrawH / 2,
-      bossDrawW,
-      bossDrawH
+      bowserBowserImg,
+      Math.round(frame * BOWSER_FRAME_W),
+      Math.round(row * BOWSER_FRAME_H),
+      Math.round(BOWSER_FRAME_W),
+      Math.round(BOWSER_FRAME_H),
+      bowserPos.x - bowserDrawW / 2,
+      bowserPos.y - bowserDrawH / 2,
+      bowserDrawW,
+      bowserDrawH
     );
   } else {
     ctx.beginPath();
-    ctx.arc(bossPos.x, bossPos.y, 60, 0, Math.PI * 2);
-    ctx.fillStyle = BOSS_COLOR;
+    ctx.arc(bowserPos.x, bowserPos.y, 60, 0, Math.PI * 2);
+    ctx.fillStyle = BOWSER_COLOR;
     ctx.fill();
     ctx.lineWidth = 4;
     ctx.strokeStyle = "#fff";
@@ -1972,15 +1976,15 @@ function draw() {
         setCharMenuVisibility(true);
         setFightMenuVisibility(false);
         showWinScreen = false;
-        bossDeathAnim = false;
-        bossDeathFrame = 0;
-        bossDeathFrameTimer = 0;
-        bossDeathY = 0;
-        bossDeathDone = false;
+        bowserDeathAnim = false;
+        bowserDeathFrame = 0;
+        bowserDeathFrameTimer = 0;
+        bowserDeathY = 0;
+        bowserDeathDone = false;
         fireworks = [];
-        // Reset boss health
-        boss.hp = BOSS_MAX_HP;
-        boss.displayHp = BOSS_MAX_HP;
+        // Reset bowser health
+        bowser.hp = BOWSER_MAX_HP;
+        bowser.displayHp = BOWSER_MAX_HP;
         // Reset damage tracking
         playerDamageDealt = [0, 0, 0, 0];
 
@@ -2016,15 +2020,15 @@ function draw() {
       restartBtn.onclick = function () {
         restartGame();
         showWinScreen = false;
-        bossDeathAnim = false;
-        bossDeathFrame = 0;
-        bossDeathFrameTimer = 0;
-        bossDeathY = 0;
-        bossDeathDone = false;
+        bowserDeathAnim = false;
+        bowserDeathFrame = 0;
+        bowserDeathFrameTimer = 0;
+        bowserDeathY = 0;
+        bowserDeathDone = false;
         fireworks = [];
-        // Reset boss health
-        boss.hp = BOSS_MAX_HP;
-        boss.displayHp = BOSS_MAX_HP;
+        // Reset bowser health
+        bowser.hp = BOWSER_MAX_HP;
+        bowser.displayHp = BOWSER_MAX_HP;
         // Reset damage tracking
         playerDamageDealt = [0, 0, 0, 0];
         // Show UI again
@@ -2059,20 +2063,49 @@ function drawHealthBar(x, y, w, h, hp, maxHp, shake = 0) {
       (Math.random() - 0.5) * 24 * shake
     );
   }
+
+  // Determine color based on health level
+  let barColor = "#76ff03"; // Green (default)
+  let shadowColor = "#4caf50"; // Green shadow
+  let shouldFlash = false;
+
+  if (hp <= 10) {
+    // Red with flashing for very low health
+    barColor = "#ff1744";
+    shadowColor = "#d32f2f";
+    shouldFlash = true;
+  } else if (hp <= 20) {
+    // Orange for low health
+    barColor = "#ff9800";
+    shadowColor = "#f57c00";
+  }
+
+  // Apply flashing effect for very low health
+  if (shouldFlash) {
+    const flashIntensity = Math.sin(Date.now() / 150) * 0.3 + 0.7; // Flash between 0.4 and 1.0
+    ctx.globalAlpha = flashIntensity;
+  }
+
   // Add glowing effect by drawing a shadowed rectangle first
   ctx.save();
-  ctx.shadowColor = "#4caf50";
+  ctx.shadowColor = shadowColor;
   ctx.shadowBlur = 16;
-  ctx.fillStyle = "#76ff03";
+  ctx.fillStyle = barColor;
   ctx.fillRect(x, y, (w * Math.max(0, hp)) / maxHp, h);
   ctx.restore();
   ctx.fillStyle = "#222";
   ctx.fillRect(x, y, w, h);
-  ctx.fillStyle = "#76ff03";
+  ctx.fillStyle = barColor;
   ctx.fillRect(x, y, (w * Math.max(0, hp)) / maxHp, h);
   ctx.strokeStyle = "#fff";
   ctx.lineWidth = 2;
   ctx.strokeRect(x, y, w, h);
+
+  // Reset alpha for text
+  if (shouldFlash) {
+    ctx.globalAlpha = 1;
+  }
+
   // Draw health number to the right of the bar
   ctx.font = `${h * 1.5}px sans-serif`;
   ctx.fillStyle = "#fff";
@@ -2103,16 +2136,16 @@ function updateFloatingDamages() {
   });
   floatingDamages = floatingDamages.filter((fd) => fd.life > 0);
   // Reduce barShake for boss and players
-  if (boss.barShake > 0) boss.barShake -= 0.1;
+  if (bowser.barShake > 0) bowser.barShake -= 0.1;
   players.forEach((p) => {
     if (p.barShake > 0) p.barShake -= 0.1;
   });
   // Animate health bars
   // Boss
-  if (Math.abs(boss.displayHp - boss.hp) > 0.1) {
-    boss.displayHp += (boss.hp - boss.displayHp) * 0.15;
+  if (Math.abs(bowser.displayHp - bowser.hp) > 0.1) {
+    bowser.displayHp += (bowser.hp - bowser.displayHp) * 0.15;
   } else {
-    boss.displayHp = boss.hp;
+    bowser.displayHp = bowser.hp;
   }
   // Players
   players.forEach((p) => {
@@ -2160,11 +2193,11 @@ function triggerScreenShake() {
   }, 400);
 }
 
-function bossAttack() {
-  // Disable all attack buttons during boss turn
+function bowserAttack() {
+  // Disable all attack buttons during bowser turn
   disableAllAttackButtons();
 
-  // Reset attack selection state for all players at the beginning of boss attack phase
+  // Reset attack selection state for all players at the beginning of bowser attack phase
   players.forEach((player) => {
     if (player.alive) {
       player.mainAttackSelected = false;
@@ -2189,12 +2222,12 @@ function bossAttack() {
     let idx = targets[Math.floor(Math.random() * targets.length)];
     if (!chosen.includes(idx)) chosen.push(idx);
   }
-  bossAttackAnim = true;
-  bossAttackAnimFrame = 0;
+  bowserAttackAnim = true;
+  bowserAttackAnimFrame = 0;
 
   // --- Staggered status effect damage ---
   const statusEffectsToApply = [];
-  if (boss.statusEffects.burn) {
+  if (bowser.statusEffects.burn) {
     statusEffectsToApply.push({
       type: "burn",
       color: "#ff5722",
@@ -2202,7 +2235,7 @@ function bossAttack() {
       value: -2,
     });
   }
-  if (boss.statusEffects.bleed) {
+  if (bowser.statusEffects.bleed) {
     statusEffectsToApply.push({
       type: "bleed",
       color: "#ffb300",
@@ -2210,7 +2243,7 @@ function bossAttack() {
       value: -2,
     });
   }
-  if (boss.statusEffects.poison) {
+  if (bowser.statusEffects.poison) {
     statusEffectsToApply.push({
       type: "poison",
       color: "#8bc34a",
@@ -2221,87 +2254,87 @@ function bossAttack() {
 
   // Helper to apply one status effect damage
   function applyStatusEffectDamage(effect, idx) {
-    boss.hp -= 2;
+    bowser.hp -= 2;
     showFloatingDamage(
-      getCenteredPositions().boss.x,
-      getCenteredPositions().boss.y - 120 + idx * 20,
+      getCenteredPositions().bowser.x,
+      getCenteredPositions().bowser.y - 120 + idx * 20,
       effect.value.toString(),
       effect.color,
       effect.label
     );
-    boss.statusEffects[effect.type].turns--;
-    if (boss.statusEffects[effect.type].turns <= 0)
-      delete boss.statusEffects[effect.type];
+    bowser.statusEffects[effect.type].turns--;
+    if (bowser.statusEffects[effect.type].turns <= 0)
+      delete bowser.statusEffects[effect.type];
     draw();
   }
 
-  // Process status effects with staggered delay, then continue with boss attack
+  // Process status effects with staggered delay, then continue with bowser attack
   if (statusEffectsToApply.length > 0) {
     statusEffectsToApply.forEach((effect, idx) => {
       setTimeout(() => {
         applyStatusEffectDamage(effect, idx);
       }, idx * 500);
     });
-    // Delay the boss attack until all status effects have been processed
+    // Delay the bowser attack until all status effects have been processed
     setTimeout(() => {
-      continueBossAttack();
+      continueBowserAttack();
     }, statusEffectsToApply.length * 800 + 100); // +100ms buffer
     return;
   } else {
-    continueBossAttack();
+    continueBowserAttack();
     return;
   }
 
-  // --- Clean rewrite of boss attack animation ---
-  function continueBossAttack() {
+  // --- Clean rewrite of bowser attack animation ---
+  function continueBowserAttack() {
     // Check status effects first
     let skipTurn = false;
-    if (boss.statusEffects.freeze) {
+    if (bowser.statusEffects.freeze) {
       skipTurn = true;
-      boss.statusEffects.freeze.turns--;
+      bowser.statusEffects.freeze.turns--;
       showFloatingDamage(
-        getCenteredPositions().boss.x,
-        getCenteredPositions().boss.y - 60,
+        getCenteredPositions().bowser.x,
+        getCenteredPositions().bowser.y - 60,
         "FROZEN!",
         "#00e5ff"
       );
-      if (boss.statusEffects.freeze.turns <= 0)
-        delete boss.statusEffects.freeze;
+      if (bowser.statusEffects.freeze.turns <= 0)
+        delete bowser.statusEffects.freeze;
     }
-    if (boss.statusEffects.distract) {
+    if (bowser.statusEffects.distract) {
       skipTurn = true;
-      boss.statusEffects.distract.turns--;
+      bowser.statusEffects.distract.turns--;
       showFloatingDamage(
-        getCenteredPositions().boss.x,
-        getCenteredPositions().boss.y - 40,
+        getCenteredPositions().bowser.x,
+        getCenteredPositions().bowser.y - 40,
         "DISTRACTED!",
         "#fff"
       );
-      if (boss.statusEffects.distract.turns <= 0)
-        delete boss.statusEffects.distract;
+      if (bowser.statusEffects.distract.turns <= 0)
+        delete bowser.statusEffects.distract;
     }
 
-    // Check if boss is already dead
-    if (boss.hp <= 0) {
-      boss.hp = 0;
+    // Check if bowser is already dead
+    if (bowser.hp <= 0) {
+      bowser.hp = 0;
       gameState = "gameover";
       turnIndicator.textContent = "Players Win!";
-      bossDeathAnim = true;
-      bossDeathFrame = 0;
-      bossDeathFrameTimer = 0;
-      bossDeathY = 0;
-      bossDeathDone = false;
-      playSound(SFX.bossDeath, 0.7);
+      bowserDeathAnim = true;
+      bowserDeathFrame = 0;
+      bowserDeathFrameTimer = 0;
+      bowserDeathY = 0;
+      bowserDeathDone = false;
+      playSound(SFX.bowserDeath, 0.7);
       gameMusic.pause();
       return;
     }
 
-    // If boss should skip turn due to status effects
+    // If bowser should skip turn due to status effects
     if (skipTurn) {
       setTimeout(() => {
-        // Reset boss animation state
-        bossAttackAnim = false;
-        bossAttackAnimFrame = 0;
+        // Reset bowser animation state
+        bowserAttackAnim = false;
+        bowserAttackAnimFrame = 0;
 
         playersThisRound = [];
         currentPlayer = players.findIndex((p) => p.alive);
@@ -2327,8 +2360,8 @@ function bossAttack() {
     ty /= chosen.length;
 
     const targetOffset = {
-      x: (tx - positions.boss.x) * 0.7, // Move 70% of the way there
-      y: (ty - positions.boss.y) * 0.7,
+      x: (tx - positions.bowser.x) * 0.7, // Move 70% of the way there
+      y: (ty - positions.bowser.y) * 0.7,
     };
 
     // Animation state
@@ -2340,8 +2373,8 @@ function bossAttack() {
     let currentLeanSide = 1; // 1 for right, -1 for left
     let returnProgress = 0;
 
-    bossAttackAnim = true;
-    boss.attackOffset = { x: 0, y: 0 };
+    bowserAttackAnim = true;
+    bowser.attackOffset = { x: 0, y: 0 };
 
     function animate() {
       if (state === "approaching") {
@@ -2364,9 +2397,9 @@ function bossAttack() {
           // Handle stomp pause
           let leanIntensity =
             Math.sin(((15 - stompPauseFrames) / 15) * Math.PI) * 20;
-          boss.attackOffset.x =
+          bowser.attackOffset.x =
             targetOffset.x * walkProgress + currentLeanSide * leanIntensity;
-          boss.attackOffset.y =
+          bowser.attackOffset.y =
             targetOffset.y * walkProgress + Math.abs(leanIntensity) * 0.2;
 
           stompPauseFrames--;
@@ -2377,27 +2410,27 @@ function bossAttack() {
 
         if (!isStomping) {
           // Update position during normal walking
-          boss.attackOffset.x = targetOffset.x * walkProgress;
-          boss.attackOffset.y = targetOffset.y * walkProgress;
+          bowser.attackOffset.x = targetOffset.x * walkProgress;
+          bowser.attackOffset.y = targetOffset.y * walkProgress;
         }
 
         // Set sprite frame based on progress (frame 0-2 during approach)
-        bossAttackAnimFrame = Math.min(2, Math.floor(walkProgress * 3));
+        bowserAttackAnimFrame = Math.min(2, Math.floor(walkProgress * 3));
 
         if (walkProgress >= 1.0) {
           // Arrived at destination
-          console.log("Boss reached destination, starting attack");
+          console.log("Bowser reached destination, starting attack");
           state = "attacking";
-          bossAttackAnimFrame = 2; // Frame 3 (index 2) for attack
-          boss.attackOffset.x = targetOffset.x;
-          boss.attackOffset.y = targetOffset.y;
+          bowserAttackAnimFrame = 2; // Frame 3 (index 2) for attack
+          bowser.attackOffset.x = targetOffset.x;
+          bowser.attackOffset.y = targetOffset.y;
         }
       } else if (state === "attacking") {
         // Only attack once - set flag immediately
         state = "attacking_pause";
 
         // Deal damage and play explosion sound
-        playSound(SFX.bossAttack, 1);
+        playSound(SFX.bowserAttack, 1);
         triggerScreenShake();
 
         chosen.forEach((i) => {
@@ -2419,7 +2452,7 @@ function bossAttack() {
         });
 
         setTimeout(() => {
-          console.log("Boss attack timeout complete, starting return");
+          console.log("Bowser attack timeout complete, starting return");
           players.forEach((p) => (p.anim = 0));
           state = "returning";
         }, 500);
@@ -2430,29 +2463,32 @@ function bossAttack() {
         // Return to original position more quickly
         returnProgress += 0.04; // Faster return speed
 
-        boss.attackOffset.x = targetOffset.x * (1 - returnProgress);
-        boss.attackOffset.y = targetOffset.y * (1 - returnProgress);
+        bowser.attackOffset.x = targetOffset.x * (1 - returnProgress);
+        bowser.attackOffset.y = targetOffset.y * (1 - returnProgress);
 
         // Frame animation during return (frame 2 back to 0)
-        bossAttackAnimFrame = Math.max(0, Math.floor((1 - returnProgress) * 3));
+        bowserAttackAnimFrame = Math.max(
+          0,
+          Math.floor((1 - returnProgress) * 3)
+        );
 
         if (returnProgress >= 1.0) {
-          console.log("Boss returning complete, transitioning to done");
+          console.log("Bowser returning complete, transitioning to done");
           state = "done";
-          boss.attackOffset = { x: 0, y: 0 };
-          bossAttackAnimFrame = 0;
+          bowser.attackOffset = { x: 0, y: 0 };
+          bowserAttackAnimFrame = 0;
 
           // Immediately execute done logic instead of waiting for next frame
-          console.log("Boss attack ending, resetting to player turn");
+          console.log("Bowser attack ending, resetting to player turn");
 
-          // Completely reset boss animation state
-          boss.anim = 0;
-          bossAttackAnim = false;
+          // Completely reset bowser animation state
+          bowser.anim = 0;
+          bowserAttackAnim = false;
 
           // Check win/lose conditions
           if (players.every((p) => !p.alive)) {
             gameState = "gameover";
-            turnIndicator.textContent = "Boss Wins!";
+            turnIndicator.textContent = "Bowser Wins!";
             gameMusic.pause();
           } else {
             // Reset for next round
@@ -2475,19 +2511,19 @@ function bossAttack() {
           return; // Stop animation completely
         }
       } else if (state === "done") {
-        // End boss turn - this should only run once
-        console.log("Boss attack ending, resetting to player turn");
+        // End bowser turn - this should only run once
+        console.log("Bowser attack ending, resetting to player turn");
 
-        // Completely reset boss animation state
-        boss.anim = 0;
-        boss.attackOffset = { x: 0, y: 0 };
-        bossAttackAnim = false;
-        bossAttackAnimFrame = 0;
+        // Completely reset bowser animation state
+        bowser.anim = 0;
+        bowser.attackOffset = { x: 0, y: 0 };
+        bowserAttackAnim = false;
+        bowserAttackAnimFrame = 0;
 
         // Check win/lose conditions
         if (players.every((p) => !p.alive)) {
           gameState = "gameover";
-          turnIndicator.textContent = "Boss Wins!";
+          turnIndicator.textContent = "Bowser Wins!";
           gameMusic.pause();
         } else {
           // Reset for next round
@@ -2525,12 +2561,12 @@ function updateTurnIndicator() {
   if (gameState === "player") {
     const name = players[currentPlayer].name || `Player ${currentPlayer + 1}`;
     turnIndicator.textContent = `${name}'s Turn`;
-  } else if (gameState === "boss") {
-    turnIndicator.textContent = `Boss Attacking!`;
+  } else if (gameState === "bowser") {
+    turnIndicator.textContent = `Bowser Attacking!`;
   }
 }
 
-function getNextBossIdleFrame(current) {
+function getNextBowserIdleFrame(current) {
   // Weighted random: linger on frame 1 and 4, sometimes repeat or skip
   const weights = [0.12, 0.32, 0.12, 0.12, 0.24, 0.08];
   let r = Math.random();
@@ -2545,7 +2581,7 @@ function getNextBossIdleFrame(current) {
     }
   }
   // Fallback: next frame
-  return (current + 1) % BOSS_IDLE_FRAMES;
+  return (current + 1) % BOWSER_IDLE_FRAMES;
 }
 
 function updateFireworks() {
@@ -2675,61 +2711,63 @@ function gameLoop() {
   if (!player1AttackAnim && player1AnimTimer % 28 === 0) {
     player1Frame = (player1Frame + 1) % PLAYER1_IDLE_FRAMES; // Only use frames 0-4 for idle
   }
-  // Animate Boss Bowser idle or death
-  if (bossDeathAnim) {
-    if (!bossDeathDone) {
-      bossDeathFrameTimer++;
+  // Animate Bowser Bowser idle or death
+  if (bowserDeathAnim) {
+    if (!bowserDeathDone) {
+      bowserDeathFrameTimer++;
       // Slower, staggered animation: pause at intervals
-      if (bossDeathFrame < 2 && bossDeathFrameTimer > 48) {
+      if (bowserDeathFrame < 2 && bowserDeathFrameTimer > 48) {
         // slower frame change
-        bossDeathFrame++;
-        bossDeathFrameTimer = 0;
-      } else if (bossDeathFrame === 2 && bossDeathFrameTimer > 80) {
+        bowserDeathFrame++;
+        bowserDeathFrameTimer = 0;
+      } else if (bowserDeathFrame === 2 && bowserDeathFrameTimer > 80) {
         // longer pause on last frame
-        bossDeathDone = true;
-        bossDeathFrameTimer = 0;
+        bowserDeathDone = true;
+        bowserDeathFrameTimer = 0;
       }
     } else {
       // More staggered, slow drop with more frequent/longer pauses
       // Drop further (e.g., 900px instead of 600)
-      if (bossDeathY < 900) {
+      if (bowserDeathY < 900) {
         // Pause for 0.7s every 60px
-        if (Math.floor(bossDeathY / 60) !== Math.floor((bossDeathY + 2) / 60)) {
-          if (!bossDeathAnim._pause) {
-            bossDeathAnim._pause = true;
+        if (
+          Math.floor(bowserDeathY / 60) !== Math.floor((bowserDeathY + 2) / 60)
+        ) {
+          if (!bowserDeathAnim._pause) {
+            bowserDeathAnim._pause = true;
             setTimeout(() => {
-              bossDeathAnim._pause = false;
+              bowserDeathAnim._pause = false;
             }, 700);
           }
         }
-        if (!bossDeathAnim._pause) {
-          bossDeathY += 1.0; // even slower drop
+        if (!bowserDeathAnim._pause) {
+          bowserDeathY += 1.0; // even slower drop
         }
       }
       // Show win screen much earlier in the drop (after 200px)
-      if (!showWinScreen && bossDeathY > 200) {
+      if (!showWinScreen && bowserDeathY > 200) {
         showWinScreen = true;
         winScreenTimer = 0;
         fireworks = [];
-        playSound(SFX.bossExplode, 0.7);
+        playSound(SFX.bowserExplode, 0.7);
         setTimeout(() => playSound(SFX.win, 0.7), 1200);
-        playSound(SFX.bossDefeat, 0.8); // Play Boss Defeat.wav
+        playSound(SFX.bowserDefeat, 0.8); // Play Boss Defeat.wav
         gameMusic.pause();
-        // Hide the UI when boss dies
+        // Hide the UI when bowser dies
         const ui = document.getElementById("ui");
         if (ui) ui.style.display = "none";
         // Hide player sprites and health bars
         if (canvas) canvas.classList.add("hide-players");
       }
     }
-  } else if (!bossAttackAnim) {
-    bossIdleFrameTimer++;
-    if (bossIdleFrameTimer >= BOSS_IDLE_FRAME_DURATIONS[bossIdleFrame]) {
-      bossIdleFrame = getNextBossIdleFrame(bossIdleFrame);
-      bossIdleFrameTimer = 0;
+  } else if (!bowserAttackAnim) {
+    bowserIdleFrameTimer++;
+    if (bowserIdleFrameTimer >= BOWSER_IDLE_FRAME_DURATIONS[bowserIdleFrame]) {
+      bowserIdleFrame = getNextBowserIdleFrame(bowserIdleFrame);
+      bowserIdleFrameTimer = 0;
     }
   } else {
-    bossIdleFrameTimer = 0;
+    bowserIdleFrameTimer = 0;
   }
   booAnimTimer++;
   draw();
@@ -2752,10 +2790,10 @@ function restartGame() {
     p.displayHp = PLAYER_MAX_HP;
     p.alive = true;
   });
-  // Reset boss
-  boss.hp = BOSS_MAX_HP;
-  boss.displayHp = BOSS_MAX_HP;
-  boss.alive = true;
+  // Reset bowser
+  bowser.hp = BOWSER_MAX_HP;
+  bowser.displayHp = BOWSER_MAX_HP;
+  bowser.alive = true;
 
   // Reset all animations and game state
   resetAllAnimations();
@@ -2789,12 +2827,12 @@ function saveGameState(saveName) {
   // Deep clone players and boss to avoid reference issues
   const saveData = {
     players: JSON.parse(JSON.stringify(players)),
-    boss: JSON.parse(JSON.stringify(boss)),
+    bowser: JSON.parse(JSON.stringify(bowser)),
     currentPlayer: currentPlayer,
     gameState: gameState,
     playersThisRound: JSON.parse(JSON.stringify(playersThisRound)),
     player1Frame: player1Frame,
-    bossFrame: bossFrame,
+    bowserFrame: bowserFrame,
     playerDamageDealt: [...playerDamageDealt],
     timestamp: Date.now(),
     saveName: saveName,
@@ -2827,20 +2865,20 @@ function loadGameState(saveName) {
         _spriteImg: undefined,
       };
     }
-    boss.hp = BOSS_MAX_HP;
-    boss.displayHp = BOSS_MAX_HP;
-    boss.alive = true;
-    boss.anim = 0;
-    boss.barShake = 0;
-    boss.attackOffset = { x: 0, y: 0 };
+    bowser.hp = BOWSER_MAX_HP;
+    bowser.displayHp = BOWSER_MAX_HP;
+    bowser.alive = true;
+    bowser.anim = 0;
+    bowser.barShake = 0;
+    bowser.attackOffset = { x: 0, y: 0 };
     // Reset win/celebration state
     showWinScreen = false;
     winScreenTimer = 0;
-    bossDeathAnim = false;
-    bossDeathFrame = 0;
-    bossDeathFrameTimer = 0;
-    bossDeathY = 0;
-    bossDeathDone = false;
+    bowserDeathAnim = false;
+    bowserDeathFrame = 0;
+    bowserDeathFrameTimer = 0;
+    bowserDeathY = 0;
+    bowserDeathDone = false;
     fireworks = [];
     // Copy only expected properties from save
     for (let i = 0; i < 4; i++) {
@@ -2877,14 +2915,14 @@ function loadGameState(saveName) {
         players[i]._sidekickSpriteImg = undefined; // re-init
       }
     }
-    const bossSrc = saveData.boss;
-    if (bossSrc) {
-      boss.hp = bossSrc.hp;
-      boss.displayHp = bossSrc.displayHp;
-      boss.alive = bossSrc.alive;
-      boss.anim = bossSrc.anim;
-      boss.barShake = bossSrc.barShake;
-      boss.attackOffset = bossSrc.attackOffset || { x: 0, y: 0 };
+    const bowserSrc = saveData.bowser;
+    if (bowserSrc) {
+      bowser.hp = bowserSrc.hp;
+      bowser.displayHp = bowserSrc.displayHp;
+      bowser.alive = bowserSrc.alive;
+      bowser.anim = bowserSrc.anim;
+      bowser.barShake = bowserSrc.barShake;
+      bowser.attackOffset = bowserSrc.attackOffset || { x: 0, y: 0 };
     }
     currentPlayer = saveData.currentPlayer;
     gameState = saveData.gameState;
@@ -2892,7 +2930,7 @@ function loadGameState(saveName) {
       ? [...saveData.playersThisRound]
       : [];
     player1Frame = saveData.player1Frame;
-    bossFrame = saveData.bossFrame;
+    bowserFrame = saveData.bowserFrame;
     playerDamageDealt = Array.isArray(saveData.playerDamageDealt)
       ? [...saveData.playerDamageDealt]
       : [0, 0, 0, 0];
@@ -2941,13 +2979,68 @@ function updateSaveSlots() {
     const date = new Date(saveData.timestamp);
     const slot = document.createElement("div");
     slot.className = "save-slot";
-    slot.innerHTML = `
-      <div>
-        <strong>${saveName}</strong><br>
-        <small>${date.toLocaleString()}</small>
-      </div>
-      <button class="delete-save" onclick="deleteSave('${saveName}')">Delete</button>
+
+    // Create the info section
+    const infoDiv = document.createElement("div");
+    infoDiv.className = "save-slot-info";
+
+    // Basic save info
+    const basicInfo = document.createElement("div");
+    basicInfo.innerHTML = `
+      <strong>${saveName}</strong><br>
+      <small>${date.toLocaleString()}</small>
     `;
+    infoDiv.appendChild(basicInfo);
+
+    // Character information
+    if (saveData && saveData.players) {
+      const charactersDiv = document.createElement("div");
+      charactersDiv.className = "save-slot-characters";
+
+      saveData.players.forEach((player, index) => {
+        if (player && (player.mainCharacter || player.sidekickCharacter)) {
+          const playerDiv = document.createElement("div");
+          playerDiv.className = "save-slot-character";
+
+          // Create character display
+          let characterDisplay = "";
+          if (player.mainSpriteFile) {
+            characterDisplay += `<img src="${player.mainSpriteFile}" alt="Main Character">`;
+          }
+          if (player.sidekickSpriteFile) {
+            characterDisplay += `<img src="${player.sidekickSpriteFile}" alt="Sidekick">`;
+          }
+
+          const characterName = player.name || `Player ${index + 1}`;
+          characterDisplay += `<div class="save-slot-character-name">${characterName}</div>`;
+
+          playerDiv.innerHTML = characterDisplay;
+          charactersDiv.appendChild(playerDiv);
+        }
+      });
+
+      if (charactersDiv.children.length > 0) {
+        infoDiv.appendChild(charactersDiv);
+      }
+    }
+
+    slot.appendChild(infoDiv);
+
+    // Actions section
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "save-slot-actions";
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "delete-save";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      deleteSave(saveName);
+    };
+    actionsDiv.appendChild(deleteBtn);
+
+    slot.appendChild(actionsDiv);
+
     slot.onclick = (e) => {
       if (!e.target.classList.contains("delete-save")) {
         loadGameState(saveName);
@@ -2979,12 +3072,53 @@ function openModal(mode) {
         const date = new Date(saveData.timestamp);
         const slot = document.createElement("div");
         slot.className = "save-slot";
-        slot.innerHTML = `
-          <div>
-            <strong>${saveName}</strong><br>
-            <small>${date.toLocaleString()}</small>
-          </div>
+
+        // Create the info section
+        const infoDiv = document.createElement("div");
+        infoDiv.className = "save-slot-info";
+
+        // Basic save info
+        const basicInfo = document.createElement("div");
+        basicInfo.innerHTML = `
+          <strong>${saveName}</strong><br>
+          <small>${date.toLocaleString()}</small>
         `;
+        infoDiv.appendChild(basicInfo);
+
+        // Character information
+        if (saveData && saveData.players) {
+          const charactersDiv = document.createElement("div");
+          charactersDiv.className = "save-slot-characters";
+
+          saveData.players.forEach((player, index) => {
+            if (player && (player.mainCharacter || player.sidekickCharacter)) {
+              const playerDiv = document.createElement("div");
+              playerDiv.className = "save-slot-character";
+
+              // Create character display
+              let characterDisplay = "";
+              if (player.mainSpriteFile) {
+                characterDisplay += `<img src="${player.mainSpriteFile}" alt="Main Character">`;
+              }
+              if (player.sidekickSpriteFile) {
+                characterDisplay += `<img src="${player.sidekickSpriteFile}" alt="Sidekick">`;
+              }
+
+              const characterName = player.name || `Player ${index + 1}`;
+              characterDisplay += `<div class="save-slot-character-name">${characterName}</div>`;
+
+              playerDiv.innerHTML = characterDisplay;
+              charactersDiv.appendChild(playerDiv);
+            }
+          });
+
+          if (charactersDiv.children.length > 0) {
+            infoDiv.appendChild(charactersDiv);
+          }
+        }
+
+        slot.appendChild(infoDiv);
+
         slot.onclick = () => {
           // If already selected, unselect
           const alreadySelected = slot.classList.contains("selected");
@@ -3035,6 +3169,9 @@ function openModal(mode) {
 function closeModal() {
   document.getElementById("save-modal").style.display = "none";
   document.getElementById("save-name").value = "";
+
+  // Reset animation states when closing modal
+  resetAllAnimations();
 }
 
 // Event listeners for save/load
@@ -3110,9 +3247,9 @@ if (confirmYesBtn) {
       p.name = "";
       p._spriteImg = undefined;
     });
-    boss.hp = BOSS_MAX_HP;
-    boss.displayHp = BOSS_MAX_HP;
-    boss.alive = true;
+    bowser.hp = BOWSER_MAX_HP;
+    bowser.displayHp = BOWSER_MAX_HP;
+    bowser.alive = true;
 
     // Reset all animations and game state
     resetAllAnimations();
@@ -3200,12 +3337,12 @@ if (mainMusicVol) {
 const SOUND_PATH = "sounds/";
 const SFX = {
   playerAttack: SOUND_PATH + "Squeak.wav",
-  bossAttack: SOUND_PATH + "Castle Explode.wav",
+  bowserAttack: SOUND_PATH + "Castle Explode.wav",
   playerHit: SOUND_PATH + "Boss Hit.wav",
   bossHit: SOUND_PATH + "Bowser Hit.wav",
   playerDeath: SOUND_PATH + "Hurt.wav",
-  bossDeath: SOUND_PATH + "Boss Defeat.wav",
-  bossExplode: SOUND_PATH + "Boss Explode.wav",
+  bowserDeath: SOUND_PATH + "Boss Defeat.wav",
+  bowserExplode: SOUND_PATH + "Boss Explode.wav",
   win: SOUND_PATH + "World Complete.wav",
   select: SOUND_PATH + "Select.wav",
   pause: SOUND_PATH + "Pause.wav",
@@ -3919,10 +4056,10 @@ function selectMainAttack(type) {
     return;
   }
 
-  // Prevent selection during attacks or boss turn
-  if (bossAttackAnim) {
+  // Prevent selection during attacks or bowser turn
+  if (bowserAttackAnim) {
     console.log("selectMainAttack blocked:", {
-      bossAttackAnim,
+      bowserAttackAnim,
       gameState,
       currentPlayer,
     });
@@ -3958,10 +4095,10 @@ function selectSidekickAttack(type) {
     return;
   }
 
-  // Prevent selection during attacks or boss turn
-  if (bossAttackAnim) {
+  // Prevent selection during attacks or bowser turn
+  if (bowserAttackAnim) {
     console.log("selectSidekickAttack blocked:", {
-      bossAttackAnim,
+      bowserAttackAnim,
       gameState,
       currentPlayer,
     });
@@ -4030,7 +4167,7 @@ function updateAttackButtons() {
   }
 
   // Disable all buttons if not player turn or during animations
-  if (gameState !== "player" || bossAttackAnim) {
+  if (gameState !== "player" || bowserAttackAnim) {
     disableAllAttackButtons();
     return;
   }
@@ -4109,8 +4246,8 @@ function doMainRegularAttack() {
   // Calculate damage and movement
   let damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
   let pos = positions.players[currentPlayer];
-  let dx = (positions.boss.x - pos.x) * 0.25;
-  let dy = (positions.boss.y - pos.y) * 0.25;
+  let dx = (positions.bowser.x - pos.x) * 0.25;
+  let dy = (positions.bowser.y - pos.y) * 0.25;
 
   // Use consolidated animation system
   startAttackAnimation({
@@ -4123,29 +4260,33 @@ function doMainRegularAttack() {
     windupDist: -30,
     onComplete: () => {
       // Deal damage
-      boss.hp -= damage;
-      boss.anim = 1;
-      boss.barShake = 1;
+      bowser.hp -= damage;
+      bowser.anim = 1;
+      bowser.barShake = 1;
       playSound(SFX.bossHit, 0.5);
-      showFloatingDamage(positions.boss.x, positions.boss.y - 70, "-" + damage);
+      showFloatingDamage(
+        positions.bowser.x,
+        positions.bowser.y - 70,
+        "-" + damage
+      );
 
       // Track damage dealt by this player
       playerDamageDealt[currentPlayer] += damage;
 
       setTimeout(() => {
-        boss.anim = 0;
+        bowser.anim = 0;
 
-        if (boss.hp <= 0) {
-          boss.hp = 0;
+        if (bowser.hp <= 0) {
+          bowser.hp = 0;
           gameState = "gameover";
           turnIndicator.textContent = "";
           executeAttacksBtn.disabled = true;
-          bossDeathAnim = true;
-          bossDeathFrame = 0;
-          bossDeathFrameTimer = 0;
-          bossDeathY = 0;
-          bossDeathDone = false;
-          playSound(SFX.bossDeath, 0.7);
+          bowserDeathAnim = true;
+          bowserDeathFrame = 0;
+          bowserDeathFrameTimer = 0;
+          bowserDeathY = 0;
+          bowserDeathDone = false;
+          playSound(SFX.bowserDeath, 0.7);
           gameMusic.pause();
         } else {
           // Now execute sidekick attack
@@ -4161,7 +4302,7 @@ function doMainRegularAttack() {
 function doMainSpecialAttack() {
   const player = players[currentPlayer];
   const positions = getCenteredPositions();
-  let bossPos = positions.boss;
+  let bowserPos = positions.bowser;
   let damage = 0;
   let color = "#fff";
   let label = "SPECIAL!";
@@ -4176,28 +4317,38 @@ function doMainSpecialAttack() {
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#ff5722";
     label = "BURN!";
-    if (!boss.statusEffects.burn) {
-      boss.statusEffects.burn = { turns: 3 };
+    if (!bowser.statusEffects.burn) {
+      bowser.statusEffects.burn = { turns: 3 };
       effect = "Burn applied!";
     }
     // Create fireball projectile
     const playerPos = positions.players[currentPlayer];
-    createFireballProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
+    createFireballProjectile(
+      playerPos.x,
+      playerPos.y,
+      bowserPos.x,
+      bowserPos.y
+    );
   } else if (mainChar === "Mario_Penguin.png") {
     // Penguin Mario: normal rng + freeze
     playSound("sounds/Ice Ball.mp3", 1);
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#00e5ff";
     label = "FREEZE!";
-    if (!boss.statusEffects.freeze) {
-      boss.statusEffects.freeze = { turns: 1 };
-      effect = "Boss frozen!";
+    if (!bowser.statusEffects.freeze) {
+      bowser.statusEffects.freeze = { turns: 1 };
+      effect = "Bowser frozen!";
     }
     // Create blizzard projectile
     const playerPos = positions.players[currentPlayer];
-    createBlizzardProjectile(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
+    createBlizzardProjectile(
+      playerPos.x,
+      playerPos.y,
+      bowserPos.x,
+      bowserPos.y
+    );
   } else if (mainChar === "Mario_Cape.png") {
-    // Mario Cape: fly out, then dive down into boss
+    // Mario Cape: fly out, then dive down into bowser
     playSound("sounds/Fly part 2.mp3", 1);
     damage = 7 + player.teamBuff;
     color = "#ffd600";
@@ -4212,8 +4363,8 @@ function doMainSpecialAttack() {
       marioY: playerPos.y,
       startX: playerPos.x,
       startY: playerPos.y,
-      bossX: bossPos.x,
-      bossY: bossPos.y,
+      bowserX: bowserPos.x,
+      bowserY: bowserPos.y,
       peakY: playerPos.y - 450,
       impact: false,
     };
@@ -4227,20 +4378,20 @@ function doMainSpecialAttack() {
       specialState: flyState,
       onImpact: () => {
         // Impact: apply damage, effects, etc.
-        boss.hp -= damage;
-        boss.anim = 1;
-        boss.barShake = 1.5;
+        bowser.hp -= damage;
+        bowser.anim = 1;
+        bowser.barShake = 1.5;
         playSound(SFX.bossHit, 0.7);
         showFloatingDamage(
-          bossPos.x,
-          bossPos.y - 70,
+          bowserPos.x,
+          bowserPos.y - 70,
           "-" + damage,
           color,
           label
         );
         playerDamageDealt[currentPlayer] += damage;
         setTimeout(() => {
-          boss.anim = 0;
+          bowser.anim = 0;
         }, 400);
       },
       onComplete: () => {
@@ -4252,17 +4403,17 @@ function doMainSpecialAttack() {
         updateAttackButtons();
 
         setTimeout(() => {
-          if (boss.hp <= 0) {
-            boss.hp = 0;
+          if (bowser.hp <= 0) {
+            bowser.hp = 0;
             gameState = "gameover";
             turnIndicator.textContent = "Players Win!";
             executeAttacksBtn.disabled = true;
-            bossDeathAnim = true;
-            bossDeathFrame = 0;
-            bossDeathFrameTimer = 0;
-            bossDeathY = 0;
-            bossDeathDone = false;
-            playSound(SFX.bossDeath, 0.7);
+            bowserDeathAnim = true;
+            bowserDeathFrame = 0;
+            bowserDeathFrameTimer = 0;
+            bowserDeathY = 0;
+            bowserDeathDone = false;
+            playSound(SFX.bowserDeath, 0.7);
             gameMusic.pause();
           } else {
             // Now execute sidekick attack
@@ -4275,7 +4426,7 @@ function doMainSpecialAttack() {
     });
     return; // Skip the rest of the default animation logic
   } else if (mainChar === "Mario_Raccoon.png") {
-    // Mario Raccoon: fly out, then dive down into boss (same as Cape Mario)
+    // Mario Raccoon: fly out, then dive down into bowser (same as Cape Mario)
     playSound("sounds/Fly part 2.mp3", 1);
     damage = 7 + player.teamBuff;
     color = "#ffd600";
@@ -4290,8 +4441,8 @@ function doMainSpecialAttack() {
       marioY: playerPos.y,
       startX: playerPos.x,
       startY: playerPos.y,
-      bossX: bossPos.x,
-      bossY: bossPos.y,
+      bowserX: bowserPos.x,
+      bowserY: bowserPos.y,
       peakY: playerPos.y - 450,
       impact: false,
     };
@@ -4305,20 +4456,20 @@ function doMainSpecialAttack() {
       specialState: flyState,
       onImpact: () => {
         // Impact: apply damage, effects, etc.
-        boss.hp -= damage;
-        boss.anim = 1;
-        boss.barShake = 1.5;
+        bowser.hp -= damage;
+        bowser.anim = 1;
+        bowser.barShake = 1.5;
         playSound(SFX.bossHit, 0.7);
         showFloatingDamage(
-          bossPos.x,
-          bossPos.y - 70,
+          bowserPos.x,
+          bowserPos.y - 70,
           "-" + damage,
           color,
           label
         );
         playerDamageDealt[currentPlayer] += damage;
         setTimeout(() => {
-          boss.anim = 0;
+          bowser.anim = 0;
         }, 400);
       },
       onComplete: () => {
@@ -4330,17 +4481,17 @@ function doMainSpecialAttack() {
         updateAttackButtons();
 
         setTimeout(() => {
-          if (boss.hp <= 0) {
-            boss.hp = 0;
+          if (bowser.hp <= 0) {
+            bowser.hp = 0;
             gameState = "gameover";
             turnIndicator.textContent = "Players Win!";
             executeAttacksBtn.disabled = true;
-            bossDeathAnim = true;
-            bossDeathFrame = 0;
-            bossDeathFrameTimer = 0;
-            bossDeathY = 0;
-            bossDeathDone = false;
-            playSound(SFX.bossDeath, 0.7);
+            bowserDeathAnim = true;
+            bowserDeathFrame = 0;
+            bowserDeathFrameTimer = 0;
+            bowserDeathY = 0;
+            bowserDeathDone = false;
+            playSound(SFX.bowserDeath, 0.7);
             gameMusic.pause();
           } else {
             // Now execute sidekick attack
@@ -4361,7 +4512,7 @@ function doMainSpecialAttack() {
     triggerScreenShake();
     // Create giant stomp effect
     const playerPos = positions.players[currentPlayer];
-    createGiantStompEffect(playerPos.x, playerPos.y, bossPos.x, bossPos.y);
+    createGiantStompEffect(playerPos.x, playerPos.y, bowserPos.x, bowserPos.y);
     // Giant Mario uses generic animation + effects
   } else if (mainChar === "Mario_Cat.png") {
     // Cat Mario: normal rng + bleed + scratch projectile with leap animation
@@ -4369,14 +4520,14 @@ function doMainSpecialAttack() {
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#ffb300";
     label = "BLEED!";
-    if (!boss.statusEffects.bleed) {
-      boss.statusEffects.bleed = { turns: 3 };
+    if (!bowser.statusEffects.bleed) {
+      bowser.statusEffects.bleed = { turns: 3 };
       effect = "Bleed applied!";
     }
 
     // Start cat leap animation using consolidated system
     const playerPos = positions.players[currentPlayer];
-    const bossTarget = positions.boss;
+    const bowserTarget = positions.bowser;
 
     let leapState = {
       phase: "leap", // aggressive leap motion
@@ -4385,8 +4536,8 @@ function doMainSpecialAttack() {
       marioY: playerPos.y,
       startX: playerPos.x,
       startY: playerPos.y,
-      bossX: bossTarget.x,
-      bossY: bossTarget.y,
+      bowserX: bowserTarget.x,
+      bowserY: bowserTarget.y,
       peakY: playerPos.y - 180, // lower arc than cape fly, more aggressive
       impact: false,
     };
@@ -4401,10 +4552,10 @@ function doMainSpecialAttack() {
       onImpact: () => {
         // Create scratch projectile at impact point
         createScratchProjectile(
-          bossTarget.x,
-          bossTarget.y,
-          bossTarget.x,
-          bossTarget.y
+          bowserTarget.x,
+          bowserTarget.y,
+          bowserTarget.x,
+          bowserTarget.y
         );
         // Add some screen shake for impact
         triggerScreenShake();
@@ -4417,13 +4568,13 @@ function doMainSpecialAttack() {
 
         // Apply damage and effects
         if (damage > 0) {
-          boss.hp -= damage;
-          boss.anim = 1;
-          boss.barShake = 1.5;
+          bowser.hp -= damage;
+          bowser.anim = 1;
+          bowser.barShake = 1.5;
           playSound(SFX.bossHit, 0.7);
           showFloatingDamage(
-            bossPos.x,
-            bossPos.y - 70,
+            bowserPos.x,
+            bowserPos.y - 70,
             "-" + damage,
             color,
             label
@@ -4433,7 +4584,7 @@ function doMainSpecialAttack() {
 
         // Show effect text if any
         if (effect) {
-          showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color);
+          showFloatingDamage(bowserPos.x, bowserPos.y - 120, effect, color);
         }
 
         // Use special charge
@@ -4441,19 +4592,19 @@ function doMainSpecialAttack() {
         updateAttackButtons();
 
         setTimeout(() => {
-          boss.anim = 0;
+          bowser.anim = 0;
 
-          if (boss.hp <= 0) {
-            boss.hp = 0;
+          if (bowser.hp <= 0) {
+            bowser.hp = 0;
             gameState = "gameover";
             turnIndicator.textContent = "Players Win!";
             executeAttacksBtn.disabled = true;
-            bossDeathAnim = true;
-            bossDeathFrame = 0;
-            bossDeathFrameTimer = 0;
-            bossDeathY = 0;
-            bossDeathDone = false;
-            playSound(SFX.bossDeath, 0.7);
+            bowserDeathAnim = true;
+            bowserDeathFrame = 0;
+            bowserDeathFrameTimer = 0;
+            bowserDeathY = 0;
+            bowserDeathDone = false;
+            playSound(SFX.bowserDeath, 0.7);
             gameMusic.pause();
           } else {
             // Now execute sidekick attack
@@ -4484,8 +4635,8 @@ function doMainSpecialAttack() {
 
   // Generic special attack animation for characters without custom animations using consolidated system
   let pos = positions.players[currentPlayer];
-  let dx = (positions.boss.x - pos.x) * 0.25;
-  let dy = (positions.boss.y - pos.y) * 0.25;
+  let dx = (positions.bowser.x - pos.x) * 0.25;
+  let dy = (positions.bowser.y - pos.y) * 0.25;
 
   startAttackAnimation({
     type: "main-special-generic",
@@ -4498,13 +4649,13 @@ function doMainSpecialAttack() {
     onComplete: () => {
       // Apply damage
       if (damage > 0) {
-        boss.hp -= damage;
-        boss.anim = 1;
-        boss.barShake = 1.5;
+        bowser.hp -= damage;
+        bowser.anim = 1;
+        bowser.barShake = 1.5;
         playSound(SFX.bossHit, 0.7);
         showFloatingDamage(
-          bossPos.x,
-          bossPos.y - 70,
+          bowserPos.x,
+          bowserPos.y - 70,
           "-" + damage,
           color,
           label
@@ -4514,7 +4665,7 @@ function doMainSpecialAttack() {
 
       // Show effect text if any
       if (effect) {
-        showFloatingDamage(bossPos.x, bossPos.y - 120, effect, color);
+        showFloatingDamage(bowserPos.x, bowserPos.y - 120, effect, color);
       }
 
       // Use special charge
@@ -4522,19 +4673,19 @@ function doMainSpecialAttack() {
       updateAttackButtons();
 
       setTimeout(() => {
-        boss.anim = 0;
+        bowser.anim = 0;
 
-        if (boss.hp <= 0) {
-          boss.hp = 0;
+        if (bowser.hp <= 0) {
+          bowser.hp = 0;
           gameState = "gameover";
           turnIndicator.textContent = "Players Win!";
           executeAttacksBtn.disabled = true;
-          bossDeathAnim = true;
-          bossDeathFrame = 0;
-          bossDeathFrameTimer = 0;
-          bossDeathY = 0;
-          bossDeathDone = false;
-          playSound(SFX.bossDeath, 0.7);
+          bowserDeathAnim = true;
+          bowserDeathFrame = 0;
+          bowserDeathFrameTimer = 0;
+          bowserDeathY = 0;
+          bowserDeathDone = false;
+          playSound(SFX.bowserDeath, 0.7);
           gameMusic.pause();
         } else {
           // Now execute sidekick attack
@@ -4569,8 +4720,8 @@ function doSidekickRegularAttack() {
 
   // Calculate movement
   let pos = positions.players[currentPlayer];
-  let dx = (positions.boss.x - pos.x) * 0.25;
-  let dy = (positions.boss.y - pos.y) * 0.25;
+  let dx = (positions.bowser.x - pos.x) * 0.25;
+  let dy = (positions.bowser.y - pos.y) * 0.25;
 
   // Use consolidated animation system
   startAttackAnimation({
@@ -4583,13 +4734,13 @@ function doSidekickRegularAttack() {
     windupDist: -30,
     onComplete: () => {
       // Apply damage
-      boss.hp -= damage;
-      boss.anim = 1;
-      boss.barShake = 1.5;
+      bowser.hp -= damage;
+      bowser.anim = 1;
+      bowser.barShake = 1.5;
       playSound(SFX.bossHit, 0.7);
       showFloatingDamage(
-        positions.boss.x,
-        positions.boss.y - 70,
+        positions.bowser.x,
+        positions.bowser.y - 70,
         "-" + damage,
         color,
         label
@@ -4602,19 +4753,19 @@ function doSidekickRegularAttack() {
       updateAttackButtons();
 
       setTimeout(() => {
-        boss.anim = 0;
+        bowser.anim = 0;
 
-        if (boss.hp <= 0) {
-          boss.hp = 0;
+        if (bowser.hp <= 0) {
+          bowser.hp = 0;
           gameState = "gameover";
           turnIndicator.textContent = "Players Win!";
           executeAttacksBtn.disabled = true;
-          bossDeathAnim = true;
-          bossDeathFrame = 0;
-          bossDeathFrameTimer = 0;
-          bossDeathY = 0;
-          bossDeathDone = false;
-          playSound(SFX.bossDeath, 0.7);
+          bowserDeathAnim = true;
+          bowserDeathFrame = 0;
+          bowserDeathFrameTimer = 0;
+          bowserDeathY = 0;
+          bowserDeathDone = false;
+          playSound(SFX.bowserDeath, 0.7);
           gameMusic.pause();
         } else {
           // Mark this player as having completed their turn
@@ -4627,8 +4778,8 @@ function doSidekickRegularAttack() {
 
           if (playersThisRound.length >= alivePlayers.length) {
             // All players have completed their turns, boss's turn
-            gameState = "boss";
-            setTimeout(bossAttack, 800);
+            gameState = "bowser";
+            setTimeout(bowserAttack, 800);
           } else {
             // Next alive player who hasn't completed their turn
             nextPlayer();
@@ -4676,7 +4827,7 @@ function doSidekickSpecialAttack() {
       }
     });
   } else if (sidekickName === "Sidekick_Toad.png") {
-    // Toad: buff team + boss skips turn
+    // Toad: buff team + bowser skips turn
     playSound("sounds/Charm.mp3", 1);
     damage = 0;
     color = "#fff";
@@ -4686,9 +4837,9 @@ function doSidekickSpecialAttack() {
       // Create buff aura for each player
       createBuffAura(idx);
     });
-    if (!boss.statusEffects.distract) {
-      boss.statusEffects.distract = { turns: 1 };
-      effect = "Boss distracted!";
+    if (!bowser.statusEffects.distract) {
+      bowser.statusEffects.distract = { turns: 1 };
+      effect = "Bowser distracted!";
     }
   } else if (sidekickName === "Sidekick_Luigi.png") {
     // Luigi: 2 normal attacks
@@ -4697,10 +4848,10 @@ function doSidekickSpecialAttack() {
     let damage2 = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#66bb6a";
     label = "DOUBLE SLAP!";
-    boss.hp -= damage2;
+    bowser.hp -= damage2;
     showFloatingDamage(
-      positions.boss.x,
-      positions.boss.y - 110,
+      positions.bowser.x,
+      positions.bowser.y - 110,
       "-" + damage2,
       color,
       label
@@ -4716,8 +4867,8 @@ function doSidekickSpecialAttack() {
     createBombProjectile(
       playerPos.x,
       playerPos.y,
-      positions.boss.x,
-      positions.boss.y
+      positions.bowser.x,
+      positions.bowser.y
     );
   } else if (sidekickName === "Sidekick_Wario.png") {
     // Wario: fart bomb + poison
@@ -4725,8 +4876,8 @@ function doSidekickSpecialAttack() {
     damage = Math.floor(Math.random() * 6) + 1 + player.teamBuff;
     color = "#8bc34a";
     label = "FART BOMB!";
-    if (!boss.statusEffects.poison) {
-      boss.statusEffects.poison = { turns: 3 };
+    if (!bowser.statusEffects.poison) {
+      bowser.statusEffects.poison = { turns: 3 };
       effect = "Poison applied!";
     }
   } else if (sidekickName === "Sidekick_DK.png") {
@@ -4745,8 +4896,8 @@ function doSidekickSpecialAttack() {
 
   // Use consolidated animation system for sidekick special attacks
   let pos = positions.players[currentPlayer];
-  let dx = (positions.boss.x - pos.x) * 0.25;
-  let dy = (positions.boss.y - pos.y) * 0.25;
+  let dx = (positions.bowser.x - pos.x) * 0.25;
+  let dy = (positions.bowser.y - pos.y) * 0.25;
 
   startAttackAnimation({
     type: "sidekick-special",
@@ -4759,13 +4910,13 @@ function doSidekickSpecialAttack() {
     onComplete: () => {
       // Apply damage if not Peach/Toad
       if (damage > 0) {
-        boss.hp -= damage;
-        boss.anim = 1;
-        boss.barShake = 1.5;
+        bowser.hp -= damage;
+        bowser.anim = 1;
+        bowser.barShake = 1.5;
         playSound(SFX.bossHit, 0.7);
         showFloatingDamage(
-          positions.boss.x,
-          positions.boss.y - 70,
+          positions.bowser.x,
+          positions.bowser.y - 70,
           "-" + damage,
           color,
           label
@@ -4778,8 +4929,8 @@ function doSidekickSpecialAttack() {
       // Show effect text if any
       if (effect) {
         showFloatingDamage(
-          positions.boss.x,
-          positions.boss.y - 120,
+          positions.bowser.x,
+          positions.bowser.y - 120,
           effect,
           color
         );
@@ -4790,19 +4941,19 @@ function doSidekickSpecialAttack() {
       updateAttackButtons();
 
       setTimeout(() => {
-        boss.anim = 0;
+        bowser.anim = 0;
 
-        if (boss.hp <= 0) {
-          boss.hp = 0;
+        if (bowser.hp <= 0) {
+          bowser.hp = 0;
           gameState = "gameover";
           turnIndicator.textContent = "Players Win!";
           executeAttacksBtn.disabled = true;
-          bossDeathAnim = true;
-          bossDeathFrame = 0;
-          bossDeathFrameTimer = 0;
-          bossDeathY = 0;
-          bossDeathDone = false;
-          playSound(SFX.bossDeath, 0.7);
+          bowserDeathAnim = true;
+          bowserDeathFrame = 0;
+          bowserDeathFrameTimer = 0;
+          bowserDeathY = 0;
+          bowserDeathDone = false;
+          playSound(SFX.bowserDeath, 0.7);
           gameMusic.pause();
         } else {
           // Mark this player as having completed their turn
@@ -4815,8 +4966,8 @@ function doSidekickSpecialAttack() {
 
           if (playersThisRound.length >= alivePlayers.length) {
             // All players have completed their turns, boss's turn
-            gameState = "boss";
-            setTimeout(bossAttack, 800);
+            gameState = "bowser";
+            setTimeout(bowserAttack, 800);
           } else {
             // Next alive player who hasn't completed their turn
             nextPlayer();
@@ -4832,27 +4983,27 @@ function doSidekickSpecialAttack() {
 // Add event listeners for new attack selection UI with proper guards
 if (mainRegularBtn)
   mainRegularBtn.addEventListener("click", (e) => {
-    if (e.target.disabled || gameState !== "player" || bossAttackAnim) return;
+    if (e.target.disabled || gameState !== "player" || bowserAttackAnim) return;
     selectMainAttack("regular");
   });
 if (mainSpecialBtn)
   mainSpecialBtn.addEventListener("click", (e) => {
-    if (e.target.disabled || gameState !== "player" || bossAttackAnim) return;
+    if (e.target.disabled || gameState !== "player" || bowserAttackAnim) return;
     selectMainAttack("special");
   });
 if (sidekickRegularBtn)
   sidekickRegularBtn.addEventListener("click", (e) => {
-    if (e.target.disabled || gameState !== "player" || bossAttackAnim) return;
+    if (e.target.disabled || gameState !== "player" || bowserAttackAnim) return;
     selectSidekickAttack("regular");
   });
 if (sidekickSpecialBtn)
   sidekickSpecialBtn.addEventListener("click", (e) => {
-    if (e.target.disabled || gameState !== "player" || bossAttackAnim) return;
+    if (e.target.disabled || gameState !== "player" || bowserAttackAnim) return;
     selectSidekickAttack("special");
   });
 if (executeAttacksBtn)
   executeAttacksBtn.addEventListener("click", (e) => {
-    if (e.target.disabled || gameState !== "player" || bossAttackAnim) return;
+    if (e.target.disabled || gameState !== "player" || bowserAttackAnim) return;
     executeAttacks();
   });
 
@@ -5050,15 +5201,15 @@ function updateSpecialProjectiles() {
     proj.life--;
     proj.rotation += 0.3;
 
-    // Check collision with boss
+    // Check collision with bowser
     const positions = getCenteredPositions();
-    const bossPos = positions.boss;
+    const bowserPos = positions.bowser;
     const distance = Math.sqrt(
-      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+      (proj.x - bowserPos.x) ** 2 + (proj.y - bowserPos.y) ** 2
     );
 
     if (distance < 60 && proj.life > 0) {
-      // Hit boss
+      // Hit bowser
       proj.life = 0;
     }
   });
@@ -5087,15 +5238,15 @@ function updateSpecialProjectiles() {
     });
     proj.particles = proj.particles.filter((particle) => particle.life > 0);
 
-    // Check collision with boss
+    // Check collision with bowser
     const positions = getCenteredPositions();
-    const bossPos = positions.boss;
+    const bowserPos = positions.bowser;
     const distance = Math.sqrt(
-      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+      (proj.x - bowserPos.x) ** 2 + (proj.y - bowserPos.y) ** 2
     );
 
     if (distance < 60 && proj.life > 0) {
-      // Hit boss
+      // Hit bowser
       proj.life = 0;
     }
   });
@@ -5108,15 +5259,15 @@ function updateSpecialProjectiles() {
     proj.life--;
     proj.rotation += 0.5;
 
-    // Check collision with boss
+    // Check collision with bowser
     const positions = getCenteredPositions();
-    const bossPos = positions.boss;
+    const bowserPos = positions.bowser;
     const distance = Math.sqrt(
-      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+      (proj.x - bowserPos.x) ** 2 + (proj.y - bowserPos.y) ** 2
     );
 
     if (distance < 60 && proj.life > 0) {
-      // Hit boss
+      // Hit bowser
       proj.life = 0;
     }
   });
@@ -5130,11 +5281,11 @@ function updateSpecialProjectiles() {
     proj.fuse--;
     proj.rotation += 0.1;
 
-    // Check collision with boss or fuse expiration
+    // Check collision with bowser or fuse expiration
     const positions = getCenteredPositions();
-    const bossPos = positions.boss;
+    const bowserPos = positions.bowser;
     const distance = Math.sqrt(
-      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+      (proj.x - bowserPos.x) ** 2 + (proj.y - bowserPos.y) ** 2
     );
 
     if ((distance < 60 || proj.fuse <= 0) && proj.life > 0) {
@@ -5182,15 +5333,15 @@ function updateSpecialProjectiles() {
     });
     proj.trail = proj.trail.filter((trail) => trail.life > 0);
 
-    // Check collision with boss
+    // Check collision with bowser
     const positions = getCenteredPositions();
-    const bossPos = positions.boss;
+    const bowserPos = positions.bowser;
     const distance = Math.sqrt(
-      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+      (proj.x - bowserPos.x) ** 2 + (proj.y - bowserPos.y) ** 2
     );
 
     if (distance < 60 && proj.life > 0) {
-      // Hit boss
+      // Hit bowser
       proj.life = 0;
     }
   });
@@ -5221,15 +5372,15 @@ function updateSpecialProjectiles() {
     });
     proj.shockwaves = proj.shockwaves.filter((shockwave) => shockwave.life > 0);
 
-    // Check collision with boss
+    // Check collision with bowser
     const positions = getCenteredPositions();
-    const bossPos = positions.boss;
+    const bowserPos = positions.bowser;
     const distance = Math.sqrt(
-      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+      (proj.x - bowserPos.x) ** 2 + (proj.y - bowserPos.y) ** 2
     );
 
     if (distance < 60 && proj.life > 0) {
-      // Hit boss
+      // Hit bowser
       proj.life = 0;
     }
   });
@@ -5259,15 +5410,15 @@ function updateSpecialProjectiles() {
     });
     proj.sparkles = proj.sparkles.filter((sparkle) => sparkle.life > 0);
 
-    // Check collision with boss
+    // Check collision with bowser
     const positions = getCenteredPositions();
-    const bossPos = positions.boss;
+    const bowserPos = positions.bowser;
     const distance = Math.sqrt(
-      (proj.x - bossPos.x) ** 2 + (proj.y - bossPos.y) ** 2
+      (proj.x - bowserPos.x) ** 2 + (proj.y - bowserPos.y) ** 2
     );
 
     if (distance < 60 && proj.life > 0) {
-      // Hit boss
+      // Hit bowser
       proj.life = 0;
     }
   });
@@ -5697,16 +5848,16 @@ function resetAllAnimations() {
   player1AttackAnim = false;
   player1AttackAnimFrame = 0;
   player1AnimTimer = 0;
-  bossFrame = 0;
-  bossAttackAnim = false;
-  bossAttackAnimFrame = 0;
-  bossIdleFrame = 0;
-  bossIdleFrameTimer = 0;
-  bossDeathAnim = false;
-  bossDeathFrame = 0;
-  bossDeathFrameTimer = 0;
-  bossDeathY = 0;
-  bossDeathDone = false;
+  bowserFrame = 0;
+  bowserAttackAnim = false;
+  bowserAttackAnimFrame = 0;
+  bowserIdleFrame = 0;
+  bowserIdleFrameTimer = 0;
+  bowserDeathAnim = false;
+  bowserDeathFrame = 0;
+  bowserDeathFrameTimer = 0;
+  bowserDeathY = 0;
+  bowserDeathDone = false;
   showWinScreen = false;
   winScreenTimer = 0;
   fireworks = [];
@@ -5745,13 +5896,13 @@ function resetAllAnimations() {
     p._sidekickSpriteImg = undefined;
   });
 
-  // Reset boss animation states
-  boss.anim = 0;
-  boss.barShake = 0;
-  boss.attackOffset = { x: 0, y: 0 };
-  boss.statusEffects = {};
-  // If you ever use boss._spriteImg, clear it here
-  if (boss._spriteImg) boss._spriteImg = undefined;
+  // Reset bowser animation states
+  bowser.anim = 0;
+  bowser.barShake = 0;
+  bowser.attackOffset = { x: 0, y: 0 };
+  bowser.statusEffects = {};
+  // If you ever use bowser._spriteImg, clear it here
+  if (bowser._spriteImg) bowser._spriteImg = undefined;
 
   // Clear special attack animations
   specialProjectiles = [];
@@ -5800,7 +5951,7 @@ function disableAllAttackButtons() {
 function enableAttackButtonsForPlayerTurn() {
   const player = players[currentPlayer];
 
-  if (!player || !player.alive || gameState !== "player" || bossAttackAnim) {
+  if (!player || !player.alive || gameState !== "player" || bowserAttackAnim) {
     disableAllAttackButtons();
     return;
   }
@@ -5828,7 +5979,7 @@ function startAttackAnimation(config) {
   }
 
   currentAttackAnimation = {
-    type: config.type, // 'main-regular', 'main-special', 'sidekick-regular', 'sidekick-special', 'boss'
+    type: config.type, // 'main-regular', 'main-special', 'sidekick-regular', 'sidekick-special', 'bowser'
     player: config.player,
     animFrames: config.animFrames || 58,
     maxFrames: config.animFrames || 58,
@@ -5853,12 +6004,12 @@ function startAttackAnimation(config) {
 // Custom Animation Handlers for Special Attacks
 function animateCapeFly(state) {
   if (state.phase === "arc") {
-    // Smooth arc motion from start to boss
+    // Smooth arc motion from start to bowser
     state.t += 0.0333;
 
     // Create smooth arc using quadratic bezier curve
     let t = Math.min(state.t, 1);
-    let midX = (state.startX + state.bossX) / 2;
+    let midX = (state.startX + state.bowserX) / 2;
 
     let oneMinusT = 1 - t;
     let tSquared = t * t;
@@ -5869,15 +6020,15 @@ function animateCapeFly(state) {
     state.marioX =
       oneMinusTSquared * state.startX +
       twoOneMinusTTimesT * midX +
-      tSquared * state.bossX;
+      tSquared * state.bowserX;
 
     // Y follows the arc (up then down)
     state.marioY =
       oneMinusTSquared * state.startY +
       twoOneMinusTTimesT * state.peakY +
-      tSquared * state.bossY;
+      tSquared * state.bowserY;
 
-    // Check for impact when close to boss
+    // Check for impact when close to bowser
     if (t >= 0.95 && !state.impact) {
       state.impact = true;
       return { impact: true };
@@ -5895,14 +6046,14 @@ function animateCapeFly(state) {
 
 function animateCatLeap(state) {
   if (state.phase === "leap") {
-    // Fast aggressive leap motion from start to boss
+    // Fast aggressive leap motion from start to bowser
     state.t += 0.0667; // Faster than cape fly
 
     // Create aggressive arc using quadratic bezier curve
     let t = Math.min(state.t, 1);
 
     // Quadratic bezier curve for cat leap
-    let midX = (state.startX + state.bossX) / 2;
+    let midX = (state.startX + state.bowserX) / 2;
 
     let oneMinusT = 1 - t;
     let tSquared = t * t;
@@ -5913,13 +6064,13 @@ function animateCatLeap(state) {
     state.marioX =
       oneMinusTSquared * state.startX +
       twoOneMinusTTimesT * midX +
-      tSquared * state.bossX;
+      tSquared * state.bowserX;
 
     // Y follows arc motion with peak
     state.marioY =
       oneMinusTSquared * state.startY +
       twoOneMinusTTimesT * state.peakY +
-      tSquared * state.bossY;
+      tSquared * state.bowserY;
 
     // Check if reached target
     if (t >= 1.0 && !state.impact) {
@@ -5935,8 +6086,8 @@ function animateCatLeap(state) {
     let t = Math.min(state.t, 1);
 
     // Linear interpolation back to start
-    state.marioX = state.bossX + (state.startX - state.bossX) * t;
-    state.marioY = state.bossY + (state.startY - state.bossY) * t;
+    state.marioX = state.bowserX + (state.startX - state.bowserX) * t;
+    state.marioY = state.bowserY + (state.startY - state.bowserY) * t;
 
     if (t >= 1.0) {
       return { complete: true };
