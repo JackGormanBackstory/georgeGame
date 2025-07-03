@@ -1150,6 +1150,7 @@ class GameUI {
     this.attackBtn = document.getElementById("attack-btn");
     this.specialAttackBtn = document.getElementById("special-attack-btn");
     this.turnIndicator = document.getElementById("turn-indicator");
+    this.selectedSaveForLoad = null; // Track selected save for loading
 
     this.setupEventListeners();
   }
@@ -1221,10 +1222,36 @@ class GameUI {
       });
     }
 
-    // Close modal when clicking outside
+    // Load modal button event listeners
+    const confirmLoadBtn = document.getElementById("confirm-load");
+    if (confirmLoadBtn) {
+      confirmLoadBtn.addEventListener("click", () => {
+        if (this.selectedSaveForLoad && window.gameController) {
+          window.gameController.loadGame(this.selectedSaveForLoad);
+          this.closeModal();
+        }
+      });
+    }
+
+    const cancelLoadBtn = document.getElementById("cancel-load");
+    if (cancelLoadBtn) {
+      cancelLoadBtn.addEventListener("click", () => {
+        this.closeModal();
+      });
+    }
+
+    // Close modal when clicking outside (only for save mode, not load mode)
     window.addEventListener("click", (e) => {
       const modal = document.getElementById("save-modal");
+      const loadSection = document.getElementById("load-section");
+      const saveSection = document.getElementById("save-input-section");
+
       if (e.target === modal) {
+        // Only close automatically if in save mode, not load mode
+        if (loadSection && loadSection.style.display === "block") {
+          // In load mode - don't close automatically, user must use Cancel button
+          return;
+        }
         this.closeModal();
       }
     });
@@ -1323,6 +1350,11 @@ class GameUI {
     const saveInfos = this.saveLoadManager.getAllSaveInfos();
 
     saveSlots.innerHTML = "";
+    this.selectedSaveForLoad = null; // Reset selection
+
+    // Disable load button when no save is selected
+    const loadBtn = document.getElementById("confirm-load");
+    if (loadBtn) loadBtn.disabled = true;
 
     saveInfos.forEach((saveInfo) => {
       const slot = document.createElement("div");
@@ -1393,12 +1425,21 @@ class GameUI {
 
       slot.appendChild(actionsDiv);
 
+      // Updated click behavior: select instead of immediate load
       slot.onclick = (e) => {
         if (!e.target.classList.contains("delete-save")) {
-          if (window.gameController) {
-            window.gameController.loadGame(saveInfo.name);
-          }
-          this.closeModal();
+          // Remove selection from other slots
+          saveSlots
+            .querySelectorAll(".save-slot")
+            .forEach((s) => s.classList.remove("selected"));
+
+          // Select this slot
+          slot.classList.add("selected");
+          this.selectedSaveForLoad = saveInfo.name;
+
+          // Enable load button
+          const loadBtn = document.getElementById("confirm-load");
+          if (loadBtn) loadBtn.disabled = false;
         }
       };
 

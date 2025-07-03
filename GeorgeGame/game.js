@@ -2985,11 +2985,19 @@ function deleteSave(saveName) {
   updateSaveSlots();
 }
 
+// Global variable to track selected save for loading
+let selectedSaveForLoad = null;
+
 function updateSaveSlots() {
   const saveSlots = document.getElementById("save-slots");
   const saves = JSON.parse(localStorage.getItem("gameSaves") || "{}");
 
   saveSlots.innerHTML = "";
+  selectedSaveForLoad = null; // Reset selection
+
+  // Disable load button when no save is selected
+  const loadBtn = document.getElementById("confirm-load");
+  if (loadBtn) loadBtn.disabled = true;
 
   Object.keys(saves).forEach((saveName) => {
     const saveData = saves[saveName];
@@ -3058,10 +3066,21 @@ function updateSaveSlots() {
 
     slot.appendChild(actionsDiv);
 
+    // Updated click behavior: select instead of immediate load
     slot.onclick = (e) => {
       if (!e.target.classList.contains("delete-save")) {
-        loadGameState(saveName);
-        closeModal();
+        // Remove selection from other slots
+        saveSlots
+          .querySelectorAll(".save-slot")
+          .forEach((s) => s.classList.remove("selected"));
+
+        // Select this slot
+        slot.classList.add("selected");
+        selectedSaveForLoad = saveName;
+
+        // Enable load button
+        const loadBtn = document.getElementById("confirm-load");
+        if (loadBtn) loadBtn.disabled = false;
       }
     };
     saveSlots.appendChild(slot);
@@ -3213,12 +3232,32 @@ document.getElementById("confirm-save").addEventListener("click", () => {
   }
 });
 
+// Load modal button event listeners
+document.getElementById("confirm-load").addEventListener("click", () => {
+  if (selectedSaveForLoad) {
+    loadGameState(selectedSaveForLoad);
+    closeModal();
+  }
+});
+
+document.getElementById("cancel-load").addEventListener("click", () => {
+  closeModal();
+});
+
 document.getElementById("close-modal").addEventListener("click", closeModal);
 
-// Close modal when clicking outside
+// Close modal when clicking outside (only for save mode, not load mode)
 window.addEventListener("click", (e) => {
   const modal = document.getElementById("save-modal");
+  const loadSection = document.getElementById("load-section");
+  const saveSection = document.getElementById("save-input-section");
+
   if (e.target === modal) {
+    // Only close automatically if in save mode, not load mode
+    if (loadSection && loadSection.style.display === "block") {
+      // In load mode - don't close automatically, user must use Cancel button
+      return;
+    }
     closeModal();
   }
 });
