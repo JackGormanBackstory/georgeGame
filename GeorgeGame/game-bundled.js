@@ -1264,6 +1264,7 @@ class GameUI {
 
     if (returnMainMenuBtn) {
       returnMainMenuBtn.addEventListener("click", () => {
+        this.audioManager.pauseGame();
         confirmModal.style.display = "flex";
       });
     }
@@ -1271,6 +1272,11 @@ class GameUI {
     if (confirmNoBtn) {
       confirmNoBtn.addEventListener("click", () => {
         confirmModal.style.display = "none";
+        // Resume game since user chose not to return to main menu
+        this.audioManager.gameMusic.play().catch((error) => {
+          console.log("Music playback failed:", error.message);
+        });
+        this.audioManager.resumeGame();
       });
     }
 
@@ -1320,15 +1326,37 @@ class GameUI {
     const loadSection = document.getElementById("load-section");
     const saveSlotsSave = document.getElementById("save-slots-save");
 
+    // Get button containers
+    const loadButtons = modal.querySelector(".modal-buttons:has(#cancel-load)");
+    const saveButtons = modal.querySelector(
+      ".modal-buttons:has(#confirm-save)"
+    );
+
+    // Set data-mode attribute for CSS styling
+    modal.setAttribute("data-mode", mode);
+
     if (mode === "save") {
       title.textContent = "Save Game";
       saveSection.style.display = "block";
       loadSection.style.display = "none";
+
+      // Show save buttons, hide load buttons
+      if (saveButtons) saveButtons.style.display = "flex";
+      if (loadButtons) loadButtons.style.display = "none";
+
+      // Change "Close" to "Cancel" for consistency
+      const closeBtn = document.getElementById("close-modal");
+      if (closeBtn) closeBtn.textContent = "Cancel";
       this.updateSaveSlotsForSave();
     } else {
       title.textContent = "Load Game";
       saveSection.style.display = "none";
       loadSection.style.display = "block";
+
+      // Show load buttons, hide save buttons
+      if (loadButtons) loadButtons.style.display = "flex";
+      if (saveButtons) saveButtons.style.display = "none";
+
       this.updateSaveSlots();
     }
 

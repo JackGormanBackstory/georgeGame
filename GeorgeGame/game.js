@@ -547,6 +547,10 @@ fightMenuModal.querySelector("#restart-game-modal").onclick = () => {
 fightMenuModal.querySelector("#return-main-menu-modal").onclick = () => {
   fightMenuModal.style.display = "none";
   document.getElementById("ui").style.display = "";
+  gameMusic.play().catch((error) => {
+    console.log("Music playback failed:", error.message);
+  });
+  resumeGame();
   document.getElementById("confirm-modal").style.display = "flex";
 };
 function setFightMenuVisibility(visible) {
@@ -3095,10 +3099,25 @@ function openModal(mode) {
   const saveSlotsSave = document.getElementById("save-slots-save");
   let selectedSaveName = null;
 
+  // Get button containers
+  const loadButtons = modal.querySelector(".modal-buttons:has(#cancel-load)");
+  const saveButtons = modal.querySelector(".modal-buttons:has(#confirm-save)");
+
+  // Set data-mode attribute for CSS styling
+  modal.setAttribute("data-mode", mode);
+
   if (mode === "save") {
     title.textContent = "Save Game";
     saveSection.style.display = "block";
     loadSection.style.display = "none";
+
+    // Show save buttons, hide load buttons
+    if (saveButtons) saveButtons.style.display = "flex";
+    if (loadButtons) loadButtons.style.display = "none";
+
+    // Change "Close" to "Cancel" for consistency
+    const closeBtn = document.getElementById("close-modal");
+    if (closeBtn) closeBtn.textContent = "Cancel";
     // Show save slots for overwrite
     if (saveSlotsSave) {
       const saves = JSON.parse(localStorage.getItem("gameSaves") || "{}");
@@ -3196,6 +3215,11 @@ function openModal(mode) {
     title.textContent = "Load Game";
     saveSection.style.display = "none";
     loadSection.style.display = "block";
+
+    // Show load buttons, hide save buttons
+    if (loadButtons) loadButtons.style.display = "flex";
+    if (saveButtons) saveButtons.style.display = "none";
+
     updateSaveSlots();
   }
 
@@ -3289,6 +3313,11 @@ if (returnMainMenuBtn) {
 if (confirmNoBtn) {
   confirmNoBtn.addEventListener("click", () => {
     confirmModal.style.display = "none";
+    // Resume game since user chose not to return to main menu
+    gameMusic.play().catch((error) => {
+      console.log("Music playback failed:", error.message);
+    });
+    resumeGame();
   });
 }
 if (confirmYesBtn) {
