@@ -1526,6 +1526,7 @@ body::after {
 
 /* Difficulty selection section */
 #difficulty-selection {
+  position: relative;
   background: #e0e0e0;
   border: 3px solid #bbb;
   border-radius: 8px;
@@ -1539,7 +1540,7 @@ body::after {
   flex: 0 0 280px;
   min-width: 280px;
   text-align: center;
-  height: 260px;
+  height: 198px;
 }
 
 #difficulty-selection h3 {
@@ -1549,14 +1550,19 @@ body::after {
   text-shadow: 1px 1px 0 #fff;
 }
 
+#difficulty-selection p {
+  position: absolute;
+  bottom: 10px;
+  padding: 0 20px;
+  margin: 0 auto;
+}
+
 #difficulty-buttons {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 15px;
   width: 100%;
-  max-width: 240px;
 }
 
 .difficulty-btn {
