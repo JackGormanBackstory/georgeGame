@@ -14,6 +14,60 @@ const spriteColors = {
   "Sidekick_Toad.png": "rgb(180,180,200)",
 };
 
+// Difficulty system
+const DIFFICULTY_LEVELS = {
+  EASY: "Easy",
+  NORMAL: "Normal",
+  HARD: "Hard",
+  EXPERT: "Expert",
+};
+
+const DIFFICULTY_SETTINGS = {
+  [DIFFICULTY_LEVELS.EASY]: {
+    bowserMaxHP: 200,
+    bowserMinDamage: 2,
+    bowserMaxDamage: 9,
+    bowserTargets: 3,
+    mainSpecialCharges: 2,
+    sidekickSpecialCharges: 2,
+    peachHealMin: 2,
+    peachHealMax: 12,
+  },
+  [DIFFICULTY_LEVELS.NORMAL]: {
+    bowserMaxHP: 250,
+    bowserMinDamage: 3,
+    bowserMaxDamage: 10,
+    bowserTargets: 3,
+    mainSpecialCharges: 2,
+    sidekickSpecialCharges: 2,
+    peachHealMin: 1,
+    peachHealMax: 6,
+  },
+  [DIFFICULTY_LEVELS.HARD]: {
+    bowserMaxHP: 300,
+    bowserMinDamage: 4,
+    bowserMaxDamage: 12,
+    bowserTargets: 4,
+    mainSpecialCharges: 1,
+    sidekickSpecialCharges: 1,
+    peachHealMin: 2,
+    peachHealMax: 12,
+  },
+  [DIFFICULTY_LEVELS.EXPERT]: {
+    bowserMaxHP: 300,
+    bowserMinDamage: 4,
+    bowserMaxDamage: 12,
+    bowserTargets: 3,
+    mainSpecialCharges: 1,
+    sidekickSpecialCharges: 1,
+    peachHealMin: 1,
+    peachHealMax: 6,
+  },
+};
+
+// Current game difficulty - set when starting a new game
+let currentDifficulty = DIFFICULTY_LEVELS.EASY;
+
 let sfxVolume = 0.7;
 
 const canvas = document.getElementById("game-canvas");
@@ -30,7 +84,12 @@ const BOWSER_COLOR = "#b39ddb";
 const BOWSER_POSITION = { x: 400, y: 420 };
 
 const PLAYER_MAX_HP = 30;
-const BOWSER_MAX_HP = 200;
+const BOWSER_MAX_HP = 200; // Default - will be overridden by difficulty settings
+
+// Helper function to get current difficulty settings
+function getCurrentDifficultySettings() {
+  return DIFFICULTY_SETTINGS[currentDifficulty];
+}
 
 let players = [
   {
@@ -46,8 +105,8 @@ let players = [
     specialReady: false,
     teamBuff: 0, // +1 damage from Toad
     // New attack cycle properties
-    mainSpecialCharges: 2, // Can use special attack twice per fight
-    sidekickSpecialCharges: 2, // Can use special attack twice per fight
+    mainSpecialCharges: 2, // Can use special attack twice per fight (will be updated by difficulty)
+    sidekickSpecialCharges: 2, // Can use special attack twice per fight (will be updated by difficulty)
     mainAttackSelected: false, // Whether main character has selected attack type
     sidekickAttackSelected: false, // Whether sidekick has selected attack type
     mainAttackType: null, // 'regular' or 'special'
@@ -1214,9 +1273,10 @@ document.getElementById("start-fight").onclick = () => {
     players[i].teamBuff = 0;
     players[i].hasAttackedThisTurn = false; // Track if main character has attacked
     players[i].sidekickHasAttackedThisTurn = false; // Track if sidekick has attacked
-    // Set special charges to 2 at the start of the fight
-    players[i].mainSpecialCharges = 2;
-    players[i].sidekickSpecialCharges = 2;
+    // Set special charges based on difficulty
+    const diffSettings = getCurrentDifficultySettings();
+    players[i].mainSpecialCharges = diffSettings.mainSpecialCharges;
+    players[i].sidekickSpecialCharges = diffSettings.sidekickSpecialCharges;
     // Reset attack selection state
     players[i].mainAttackSelected = false;
     players[i].sidekickAttackSelected = false;
@@ -1224,8 +1284,10 @@ document.getElementById("start-fight").onclick = () => {
     players[i].sidekickAttackType = null;
   }
 
-  bowser.hp = BOWSER_MAX_HP;
-  bowser.displayHp = BOWSER_MAX_HP;
+  // Set Bowser HP based on difficulty
+  const diffSettings = getCurrentDifficultySettings();
+  bowser.hp = diffSettings.bowserMaxHP;
+  bowser.displayHp = diffSettings.bowserMaxHP;
   bowser.alive = true;
   bowser.anim = 0;
   bowser.barShake = 0;
@@ -1286,7 +1348,7 @@ function draw() {
   const positions = getCenteredPositions();
 
   // Draw Bowser Health Bar (large, red, top of screen)
-  const bowserBarW = Math.min(canvas.width * 0.6, 600);
+  const bowserBarW = Math.min(canvas.width * 0.55, 500);
   const bowserBarH = 32;
   const bowserBarX = (canvas.width - bowserBarW) / 2;
   const bowserBarY = 36;
@@ -1302,12 +1364,10 @@ function draw() {
   ctx.fillStyle = "#222";
   ctx.fillRect(bowserBarX, bowserBarY, bowserBarW, bowserBarH);
   ctx.fillStyle = "#e53935";
-  ctx.fillRect(
-    bowserBarX,
-    bowserBarY,
-    (bowserBarW * Math.max(0, bowser.displayHp)) / BOWSER_MAX_HP,
-    bowserBarH
-  );
+  const maxHP = getCurrentDifficultySettings().bowserMaxHP;
+  const currentHP = Math.max(0, bowser.displayHp);
+  const barWidth = (bowserBarW * currentHP) / maxHP;
+  ctx.fillRect(bowserBarX, bowserBarY, barWidth, bowserBarH);
   ctx.lineWidth = 4;
   ctx.strokeStyle = "#fff";
   ctx.strokeRect(bowserBarX, bowserBarY, bowserBarW, bowserBarH);
@@ -1317,7 +1377,9 @@ function draw() {
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   ctx.fillText(
-    `${Math.max(0, Math.round(bowser.displayHp))}/${BOWSER_MAX_HP}`,
+    `${Math.max(0, Math.round(bowser.displayHp))}/${
+      getCurrentDifficultySettings().bowserMaxHP
+    }`,
     bowserBarX + bowserBarW - 12,
     bowserBarY + bowserBarH / 2
   );
@@ -1989,8 +2051,8 @@ function draw() {
         bowserDeathDone = false;
         fireworks = [];
         // Reset bowser health
-        bowser.hp = BOWSER_MAX_HP;
-        bowser.displayHp = BOWSER_MAX_HP;
+        bowser.hp = getCurrentDifficultySettings().bowserMaxHP;
+        bowser.displayHp = getCurrentDifficultySettings().bowserMaxHP;
         // Reset damage tracking
         playerDamageDealt = [0, 0, 0, 0];
 
@@ -2033,8 +2095,8 @@ function draw() {
         bowserDeathDone = false;
         fireworks = [];
         // Reset bowser health
-        bowser.hp = BOWSER_MAX_HP;
-        bowser.displayHp = BOWSER_MAX_HP;
+        bowser.hp = getCurrentDifficultySettings().bowserMaxHP;
+        bowser.displayHp = getCurrentDifficultySettings().bowserMaxHP;
         // Reset damage tracking
         playerDamageDealt = [0, 0, 0, 0];
         // Show UI again
@@ -2500,7 +2562,8 @@ function bowserAttack() {
   let targets = players
     .map((p, i) => (p.alive ? i : null))
     .filter((i) => i !== null);
-  let numAttacks = Math.min(3, targets.length);
+  const diffSettings = getCurrentDifficultySettings();
+  let numAttacks = Math.min(diffSettings.bowserTargets, targets.length);
   let chosen = [];
   while (chosen.length < numAttacks) {
     let idx = targets[Math.floor(Math.random() * targets.length)];
@@ -2718,7 +2781,13 @@ function bowserAttack() {
         triggerScreenShake();
 
         chosen.forEach((i) => {
-          let damage = Math.floor(Math.random() * 8) + 2;
+          let damage =
+            Math.floor(
+              Math.random() *
+                (diffSettings.bowserMaxDamage -
+                  diffSettings.bowserMinDamage +
+                  1)
+            ) + diffSettings.bowserMinDamage;
           players[i].hp -= damage;
           players[i].anim = 1;
           players[i].barShake = 1;
@@ -3085,8 +3154,8 @@ function restartGame() {
     p.alive = true;
   });
   // Reset bowser
-  bowser.hp = BOWSER_MAX_HP;
-  bowser.displayHp = BOWSER_MAX_HP;
+  bowser.hp = getCurrentDifficultySettings().bowserMaxHP;
+  bowser.displayHp = getCurrentDifficultySettings().bowserMaxHP;
   bowser.alive = true;
 
   // Reset all animations and game state
@@ -3133,6 +3202,7 @@ function saveGameState(saveName) {
     player1Frame: player1Frame,
     bowserFrame: bowserFrame,
     playerDamageDealt: [...playerDamageDealt],
+    difficulty: currentDifficulty,
     timestamp: Date.now(),
     saveName: saveName,
   };
@@ -3247,6 +3317,9 @@ function loadGameState(saveName) {
       ? [...saveData.playerDamageDealt]
       : [0, 0, 0, 0];
 
+    // Restore difficulty (default to Easy if not saved)
+    currentDifficulty = saveData.difficulty || DIFFICULTY_LEVELS.EASY;
+
     updateTurnIndicator();
     // Enable attack buttons for the current player - use the correct function!
     enableAttackButtonsForPlayerTurn();
@@ -3307,9 +3380,11 @@ function updateSaveSlots() {
 
     // Basic save info
     const basicInfo = document.createElement("div");
+    const difficulty = saveData.difficulty || "Easy";
     basicInfo.innerHTML = `
       <strong>${saveName}</strong><br>
-      <small>${date.toLocaleString()}</small>
+      <small>${date.toLocaleString()}</small><br>
+      <small style="color: #4fc3f7; font-weight: bold;">Difficulty: ${difficulty}</small>
     `;
     infoDiv.appendChild(basicInfo);
 
@@ -3426,9 +3501,11 @@ function openModal(mode) {
 
         // Basic save info
         const basicInfo = document.createElement("div");
+        const difficulty = saveData.difficulty || "Easy";
         basicInfo.innerHTML = `
           <strong>${saveName}</strong><br>
-          <small>${date.toLocaleString()}</small>
+          <small>${date.toLocaleString()}</small><br>
+          <small style="color: #4fc3f7; font-weight: bold;">Difficulty: ${difficulty}</small>
         `;
         infoDiv.appendChild(basicInfo);
 
@@ -3624,8 +3701,8 @@ if (confirmYesBtn) {
       p.name = "";
       p._spriteImg = undefined;
     });
-    bowser.hp = BOWSER_MAX_HP;
-    bowser.displayHp = BOWSER_MAX_HP;
+    bowser.hp = getCurrentDifficultySettings().bowserMaxHP;
+    bowser.displayHp = getCurrentDifficultySettings().bowserMaxHP;
     bowser.alive = true;
 
     // Reset all animations and game state
@@ -3648,7 +3725,7 @@ function renderMusicControls(targetId) {
     <input id="music-volume-select" type="range" min="0" max="1" step="0.01" value="${
       menuMusic.volume
     }">
-    <button id="music-mute-select" title="Mute/Unmute" style="margin-left:8px;">${
+    <button class="snes-btn" id="music-mute-select" title="Mute/Unmute">${
       menuMusic.muted ? "🔇" : "🔊"
     }</button>
   `;
@@ -3684,6 +3761,37 @@ function attachLoadSaveSelectBtn() {
   }
 }
 
+// --- Difficulty Selection ---
+function initializeDifficultySelection() {
+  const difficultyButtons = document.querySelectorAll(".difficulty-btn");
+  const difficultyDescription = document.getElementById(
+    "difficulty-description"
+  );
+
+  const descriptions = {
+    Easy: "Easy: Standard game balance - great for beginners",
+    Normal: "Normal: Balanced challenge - stronger Bowser",
+    Hard: "Hard: Tough challenge - 1 special attack, more Bowser attacks",
+    Expert: "Expert: Balanced challenge - 1 special attack, tactical gameplay",
+  };
+
+  difficultyButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      // Remove selected class from all buttons
+      difficultyButtons.forEach((b) => b.classList.remove("selected"));
+
+      // Add selected class to clicked button
+      btn.classList.add("selected");
+
+      // Update current difficulty
+      currentDifficulty = btn.dataset.difficulty;
+
+      // Update description
+      difficultyDescription.innerHTML = `<p>${descriptions[currentDifficulty]}</p>`;
+    });
+  });
+}
+
 // Render music controls on select screen
 renderMusicControls("music-controls-select");
 attachLoadSaveSelectBtn();
@@ -3694,6 +3802,7 @@ showCharacterSelect = function () {
   _origShowCharacterSelect();
   renderMusicControls("music-controls-select");
   attachLoadSaveSelectBtn();
+  initializeDifficultySelection();
   setCharMenuVisibility(true);
   setFightMenuVisibility(false);
   charMenuBtn.style.display = "";
@@ -4569,8 +4678,9 @@ function updateAttackButtons() {
   mainSpecialBtn.disabled = player.mainSpecialCharges <= 0;
 
   // Display main special charges with character's special attack name
+  const diffSettings = getCurrentDifficultySettings();
   if (player.mainSpecialCharges > 0) {
-    mainSpecialBtn.textContent = `${mainSpecialName} (${player.mainSpecialCharges}/2)`;
+    mainSpecialBtn.textContent = `${mainSpecialName} (${player.mainSpecialCharges}/${diffSettings.mainSpecialCharges})`;
   } else {
     mainSpecialBtn.textContent = "No attacks left!";
   }
@@ -4588,7 +4698,7 @@ function updateAttackButtons() {
 
   // Display sidekick special charges with character's special attack name
   if (player.sidekickSpecialCharges > 0) {
-    sidekickSpecialBtn.textContent = `${sidekickSpecialName} (${player.sidekickSpecialCharges}/2)`;
+    sidekickSpecialBtn.textContent = `${sidekickSpecialName} (${player.sidekickSpecialCharges}/${diffSettings.sidekickSpecialCharges})`;
   } else {
     sidekickSpecialBtn.textContent = "No attacks left!";
   }
@@ -5189,7 +5299,12 @@ function doSidekickSpecialAttack() {
     damage = 0;
     color = "#f06292";
     label = "HEAL!";
-    let heal = (Math.floor(Math.random() * 6) + 1) * 2;
+    const diffSettings = getCurrentDifficultySettings();
+    let heal =
+      Math.floor(
+        Math.random() *
+          (diffSettings.peachHealMax - diffSettings.peachHealMin + 1)
+      ) + diffSettings.peachHealMin;
     players.forEach((pl, idx) => {
       if (pl.alive) {
         pl.hp = Math.min(PLAYER_MAX_HP, pl.hp + heal);

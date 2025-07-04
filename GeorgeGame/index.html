@@ -112,9 +112,47 @@
         Each player needs a main character and a sidekick
       </p>
       <div id="sprite-grid"></div>
-      <div class="selected-characters-wrapper">
-        <h3 id="selected-characters-heading">Selected Characters</h3>
-        <div id="selected-characters"></div>
+      <div class="characters-and-difficulty-container">
+        <div class="selected-characters-wrapper">
+          <h3 id="selected-characters-heading">Selected Characters</h3>
+          <div id="selected-characters"></div>
+        </div>
+        <div id="difficulty-selection">
+          <h3>Select Difficulty</h3>
+          <div id="difficulty-buttons">
+            <button
+              id="difficulty-easy"
+              class="snes-btn difficulty-btn selected"
+              data-difficulty="Easy"
+            >
+              Easy
+            </button>
+            <button
+              id="difficulty-normal"
+              class="snes-btn difficulty-btn"
+              data-difficulty="Normal"
+            >
+              Normal
+            </button>
+            <button
+              id="difficulty-hard"
+              class="snes-btn difficulty-btn"
+              data-difficulty="Hard"
+            >
+              Hard
+            </button>
+            <button
+              id="difficulty-expert"
+              class="snes-btn difficulty-btn"
+              data-difficulty="Expert"
+            >
+              Expert
+            </button>
+          </div>
+          <div id="difficulty-description">
+            <p>Easy: Standard game balance - great for beginners</p>
+          </div>
+        </div>
       </div>
       <div id="character-select-controls">
         <button id="load-save-select" class="snes-btn">Load save</button>
@@ -153,7 +191,7 @@
             Execute Attacks!
           </button>
         </div>
-        <div id="audio-controls">
+        <div class="music-controls-select" id="audio-controls">
           <input
             id="music-volume"
             type="range"
@@ -186,18 +224,17 @@
             >Overwrite save?</span
           >
           <div id="save-slots-save"></div>
-          <div class="modal-buttons">
-            <button id="confirm-save" class="snes-btn">Save</button>
-            <button id="close-modal" class="snes-btn">Close</button>
-          </div>
         </div>
         <div id="load-section">
-          <h3>Saved Games:</h3>
           <div id="save-slots"></div>
-          <div class="modal-buttons">
-            <button id="confirm-load" class="snes-btn" disabled>Load</button>
-            <button id="cancel-load" class="snes-btn">Cancel</button>
-          </div>
+        </div>
+        <div class="modal-buttons">
+          <button id="cancel-load" class="snes-btn">Cancel</button>
+          <button id="confirm-load" class="snes-btn" disabled>Load</button>
+        </div>
+        <div class="modal-buttons">
+          <button id="confirm-save" class="snes-btn">Save</button>
+          <button id="close-modal" class="snes-btn">Close</button>
         </div>
       </div>
     </div>
