@@ -1,0 +1,61 @@
+{
+  "name": "george-game",
+  "version": "1.0.0",
+  "description": "Super Smash Showdown - A multiplayer fighting game",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server . -p 8080 -c-1",
+    "build": "npm run build:prepare && npm run build:pwa",
+    "build:prepare": "node build-scripts/prepare-assets.js",
+    "build:pwa": "node build-scripts/generate-pwa-icons.js",
+    "serve": "npx http-server . -p 8080 -c-1 --cors",
+    "dev": "npx http-server . -p 8080 -c-1 --cors",
+    "package:electron": "npm run build && npx electron-builder",
+    "package:tauri": "npm run build && npx tauri build",
+    "deploy": "npm run build && npx gh-pages -d .",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [
+    "game",
+    "html5",
+    "javascript",
+    "pwa",
+    "multiplayer",
+    "fighting-game"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JackGormanBackstory/georgeGame.git"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.0.0",
+    "gh-pages": "^6.0.0",
+    "sharp": "^0.33.0"
+  },
+  "build": {
+    "appId": "com.georgegame.app",
+    "productName": "George Game",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*",
+      "!dist/**/*",
+      "!build-scripts/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.games"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  }
+}
