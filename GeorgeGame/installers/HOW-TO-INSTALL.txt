@@ -1,0 +1,36 @@
+🎮 GEORGE GAME - INSTALLATION INSTRUCTIONS
+==========================================
+
+FOR USERS (NO TECHNICAL KNOWLEDGE REQUIRED)
+
+Windows Users:
+1. Find the file ending in ".exe" (e.g., "George Game Setup 1.0.0.exe")
+2. Double-click the .exe file
+3. Follow the installation wizard (click "Next" and "Install")
+4. The game will appear in your Start Menu and Desktop
+5. Double-click the game icon to play!
+
+Mac Users:
+1. Find the file ending in ".dmg" (e.g., "George Game-1.0.0.dmg")
+2. Double-click the .dmg file
+3. Drag the game icon to your Applications folder
+4. Open Applications folder and double-click the game
+5. If you see a security warning, go to System Preferences > Security & Privacy and click "Open Anyway"
+
+Linux Users:
+1. Find the file ending in ".AppImage" (e.g., "George Game-1.0.0.AppImage")
+2. Right-click the file and select "Properties"
+3. Go to "Permissions" tab and check "Execute" or "Allow executing file as program"
+4. Double-click the file to run the game
+
+TROUBLESHOOTING:
+- If installation fails, make sure you have administrator privileges
+- If the game won't start, check that you have enough disk space (at least 500MB)
+- If you see security warnings, it's normal for unsigned apps - click "Allow" or "Open Anyway"
+
+GETTING UPDATES:
+- The game will automatically check for updates when you start it
+- You'll be notified when a new version is available
+- You can download and install updates the same way you installed the original game
+
+Need help? Contact: [your-email@example.com]

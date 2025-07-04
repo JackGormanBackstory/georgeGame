@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PWA Debug - George Game</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#4b367c" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+      .debug-section {
+        background: white;
+        padding: 20px;
+        margin: 10px 0;
+        border-radius: 8px;
+        border-left: 4px solid #4caf50;
+      }
+      .debug-section.error {
+        border-left-color: #f44336;
+        background: #ffebee;
+      }
+      .debug-section.warning {
+        border-left-color: #ff9800;
+        background: #fff3e0;
+      }
+      .install-button {
+        background: #4caf50;
+        color: white;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 5px;
+        font-size: 1.2em;
+        cursor: pointer;
+        margin: 10px 0;
+      }
+      .install-button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .status {
+        padding: 5px 10px;
+        border-radius: 3px;
+        font-weight: bold;
+        display: inline-block;
+        margin: 5px 0;
+      }
+      .status.pass {
+        background: #4caf50;
+        color: white;
+      }
+      .status.fail {
+        background: #f44336;
+        color: white;
+      }
+      .status.unknown {
+        background: #ff9800;
+        color: white;
+      }
+      pre {
+        background: #f0f0f0;
+        padding: 10px;
+        border-radius: 4px;
+        overflow: auto;
+        font-size: 0.9em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎮 George Game - PWA Installation Debug</h1>
+
+    <div class="debug-section">
+      <h3>🚀 Installation</h3>
+      <button
+        id="install-btn"
+        class="install-button"
+        onclick="installGame()"
+        disabled
+      >
+        Install Game (Checking...)
+      </button>
+      <div id="install-status"></div>
+    </div>
+
+    <div class="debug-section">
+      <h3>📋 PWA Requirements Check</h3>
+      <div id="requirements-check">Checking...</div>
+    </div>
+
+    <div class="debug-section">
+      <h3>🌐 Current URL</h3>
+      <div id="url-info"></div>
+    </div>
+
+    <div class="debug-section">
+      <h3>📱 Browser Info</h3>
+      <div id="browser-info"></div>
+    </div>
+
+    <div class="debug-section">
+      <h3>📄 Manifest Status</h3>
+      <div id="manifest-status">Checking...</div>
+    </div>
+
+    <div class="debug-section">
+      <h3>⚙️ Service Worker Status</h3>
+      <div id="sw-status">Checking...</div>
+    </div>
+
+    <div class="debug-section">
+      <h3>🔧 Debug Console</h3>
+      <pre id="console-log"></pre>
+    </div>
+
+    <script>
+      let deferredPrompt = null;
+      let installAvailable = false;
+      const log = [];
+
+      function addLog(message) {
+        const timestamp = new Date().toLocaleTimeString();
+        log.push(`[${timestamp}] ${message}`);
+        document.getElementById("console-log").textContent = log.join("\n");
+        console.log(message);
+      }
+
+      function updateStatus(elementId, content) {
+        document.getElementById(elementId).innerHTML = content;
+      }
+
+      function createStatus(condition, passText, failText) {
+        if (condition === null || condition === undefined) {
+          return `<span class="status unknown">Unknown</span> ${passText}`;
+        }
+        return condition
+          ? `<span class="status pass">✅ Pass</span> ${passText}`
+          : `<span class="status fail">❌ Fail</span> ${failText}`;
+      }
+
+      // Check current URL
+      function checkURL() {
+        const url = window.location.href;
+        const isHTTPS = url.startsWith("https://");
+        const isLocalhost =
+          url.includes("localhost") || url.includes("127.0.0.1");
+        const isFile = url.startsWith("file://");
+
+        let urlStatus = "";
+        if (isFile) {
+          urlStatus = `<span class="status fail">❌ File Protocol</span> ${url}<br><strong>Fix:</strong> Must be served over HTTP/HTTPS`;
+        } else if (isHTTPS) {
+          urlStatus = `<span class="status pass">✅ HTTPS</span> ${url}`;
+        } else if (isLocalhost) {
+          urlStatus = `<span class="status unknown">⚠️ HTTP Localhost</span> ${url}<br><strong>Note:</strong> PWA works on localhost, but HTTPS is better`;
+        } else {
+          urlStatus = `<span class="status fail">❌ HTTP</span> ${url}<br><strong>Fix:</strong> Must use HTTPS for PWA`;
+        }
+
+        updateStatus("url-info", urlStatus);
+        return !isFile && (isHTTPS || isLocalhost);
+      }
+
+      // Check browser info
+      function checkBrowser() {
+        const userAgent = navigator.userAgent;
+        const isChrome = userAgent.includes("Chrome");
+        const isSafari =
+          userAgent.includes("Safari") && !userAgent.includes("Chrome");
+        const isFirefox = userAgent.includes("Firefox");
+        const isEdge = userAgent.includes("Edge");
+
+        let browserStatus = `User Agent: ${userAgent}<br>`;
+        if (isChrome) {
+          browserStatus += `<span class="status pass">✅ Chrome</span> PWA Supported`;
+        } else if (isSafari) {
+          browserStatus += `<span class="status unknown">⚠️ Safari</span> Limited PWA support`;
+        } else if (isFirefox) {
+          browserStatus += `<span class="status pass">✅ Firefox</span> PWA Supported`;
+        } else if (isEdge) {
+          browserStatus += `<span class="status pass">✅ Edge</span> PWA Supported`;
+        } else {
+          browserStatus += `<span class="status unknown">⚠️ Unknown</span> PWA support unknown`;
+        }
+
+        updateStatus("browser-info", browserStatus);
+      }
+
+      // Check manifest
+      async function checkManifest() {
+        try {
+          const response = await fetch("./manifest.json");
+          if (response.ok) {
+            const manifest = await response.json();
+            updateStatus(
+              "manifest-status",
+              `
+                        <span class="status pass">✅ Found</span> manifest.json<br>
+                        <strong>Name:</strong> ${manifest.name}<br>
+                        <strong>Start URL:</strong> ${manifest.start_url}<br>
+                        <strong>Display:</strong> ${manifest.display}<br>
+                        <strong>Icons:</strong> ${
+                          manifest.icons ? manifest.icons.length : 0
+                        } found
+                    `
+            );
+            return true;
+          } else {
+            updateStatus(
+              "manifest-status",
+              `<span class="status fail">❌ Error</span> Could not load manifest.json (${response.status})`
+            );
+            return false;
+          }
+        } catch (error) {
+          updateStatus(
+            "manifest-status",
+            `<span class="status fail">❌ Error</span> ${error.message}`
+          );
+          return false;
+        }
+      }
+
+      // Check service worker
+      async function checkServiceWorker() {
+        if ("serviceWorker" in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.register(
+              "./sw.js"
+            );
+            updateStatus(
+              "sw-status",
+              `
+                        <span class="status pass">✅ Registered</span> Service Worker<br>
+                        <strong>Scope:</strong> ${registration.scope}<br>
+                        <strong>State:</strong> ${
+                          registration.active ? "Active" : "Installing"
+                        }
+                    `
+            );
+            return true;
+          } catch (error) {
+            updateStatus(
+              "sw-status",
+              `<span class="status fail">❌ Error</span> ${error.message}`
+            );
+            return false;
+          }
+        } else {
+          updateStatus(
+            "sw-status",
+            `<span class="status fail">❌ Not Supported</span> Service Workers not available`
+          );
+          return false;
+        }
+      }
+
+      // Check all requirements
+      async function checkRequirements() {
+        addLog("Starting PWA requirements check...");
+
+        const urlOK = checkURL();
+        checkBrowser();
+        const manifestOK = await checkManifest();
+        const swOK = await checkServiceWorker();
+
+        const requirements = [
+          createStatus(
+            urlOK,
+            "Valid URL (HTTPS or localhost)",
+            "Invalid URL - must be HTTPS or localhost"
+          ),
+          createStatus(
+            manifestOK,
+            "Manifest file found and valid",
+            "Manifest file missing or invalid"
+          ),
+          createStatus(
+            swOK,
+            "Service Worker registered",
+            "Service Worker failed to register"
+          ),
+          createStatus(
+            "serviceWorker" in navigator,
+            "Service Worker API supported",
+            "Service Worker API not supported"
+          ),
+          createStatus(
+            window.location.protocol !== "file:",
+            "Not file:// protocol",
+            "Cannot use file:// protocol"
+          ),
+        ];
+
+        updateStatus("requirements-check", requirements.join("<br>"));
+
+        const allOK = urlOK && manifestOK && swOK;
+        addLog(`Requirements check complete. All OK: ${allOK}`);
+
+        return allOK;
+      }
+
+      // Listen for install prompt
+      window.addEventListener("beforeinstallprompt", (e) => {
+        addLog("beforeinstallprompt event fired - PWA is installable!");
+        e.preventDefault();
+        deferredPrompt = e;
+        installAvailable = true;
+
+        const installBtn = document.getElementById("install-btn");
+        installBtn.disabled = false;
+        installBtn.textContent = "📱 Install Game Now";
+
+        updateStatus(
+          "install-status",
+          '<span class="status pass">✅ Ready</span> PWA can be installed'
+        );
+      });
+
+      // Handle installation
+      async function installGame() {
+        if (deferredPrompt) {
+          addLog("Showing install prompt...");
+          deferredPrompt.prompt();
+          const { outcome } = await deferredPrompt.userChoice;
+
+          addLog(`User choice: ${outcome}`);
+
+          if (outcome === "accepted") {
+            updateStatus(
+              "install-status",
+              '<span class="status pass">✅ Installed</span> App has been installed!'
+            );
+          } else {
+            updateStatus(
+              "install-status",
+              '<span class="status unknown">⚠️ Cancelled</span> User cancelled installation'
+            );
+          }
+          deferredPrompt = null;
+        } else {
+          addLog("No install prompt available - checking why...");
+          updateStatus(
+            "install-status",
+            '<span class="status fail">❌ Not Available</span> PWA installation not available'
+          );
+
+          // Re-check requirements
+          setTimeout(checkRequirements, 100);
+        }
+      }
+
+      // Handle app installed
+      window.addEventListener("appinstalled", (evt) => {
+        addLog("App was installed successfully!");
+        updateStatus(
+          "install-status",
+          '<span class="status pass">✅ Success</span> App installed successfully!'
+        );
+      });
+
+      // Initialize
+      window.addEventListener("load", async () => {
+        addLog("Page loaded, starting checks...");
+        await checkRequirements();
+
+        // If no install prompt after 2 seconds, update status
+        setTimeout(() => {
+          if (!installAvailable) {
+            addLog("No beforeinstallprompt event after 2 seconds");
+            updateStatus(
+              "install-status",
+              '<span class="status fail">❌ Not Available</span> PWA installation criteria not met'
+            );
+
+            const installBtn = document.getElementById("install-btn");
+            installBtn.textContent =
+              "Cannot Install - Check Requirements Above";
+          }
+        }, 2000);
+      });
+    </script>
+  </body>
+</html>

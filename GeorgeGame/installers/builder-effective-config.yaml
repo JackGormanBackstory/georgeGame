@@ -1,0 +1,30 @@
+directories:
+  output: installers
+  buildResources: build
+appId: com.georgegame.app
+productName: George Game
+files:
+  - filter:
+      - '**/*'
+      - '!node_modules/**/*'
+      - '!build-scripts/**/*'
+      - '!dist/**/*'
+      - '!installers/**/*'
+win:
+  target: nsis
+  icon: favicon.ico
+mac:
+  target: dmg
+  icon: favicon.icns
+  category: public.app-category.games
+linux:
+  target: AppImage
+  icon: favicon.png
+  category: Game
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+electronVersion: 28.3.3

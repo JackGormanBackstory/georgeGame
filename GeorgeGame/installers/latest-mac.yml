@@ -1,0 +1,8 @@
+version: 1.0.0
+files:
+  - url: George-Game-1.0.0-arm64.dmg
+    sha512: nVXaSHicLv2jKCGMcMoXyC/8c6Epus5+xmifIZE5BOA1ce5x3okKOi1egF/4S+Z1SMiozhP7dchu9mhRGH7W+g==
+    size: 135616808
+path: George-Game-1.0.0-arm64.dmg
+sha512: nVXaSHicLv2jKCGMcMoXyC/8c6Epus5+xmifIZE5BOA1ce5x3okKOi1egF/4S+Z1SMiozhP7dchu9mhRGH7W+g==
+releaseDate: '2025-07-04T22:27:21.088Z'
