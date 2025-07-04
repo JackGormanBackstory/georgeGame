@@ -12,6 +12,9 @@ class TouchControls {
     this.virtualButtons = [];
     this.isTouchDevice =
       "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    this.isPortrait = window.innerHeight > window.innerWidth;
+    this.lastTouchTime = 0;
+    this.doubleTapDelay = 300;
 
     this.init();
   }
@@ -28,6 +31,11 @@ class TouchControls {
   }
 
   setupTouchControls() {
+    // Only setup touch controls on mobile devices
+    if (!this.isTouchDevice || window.innerWidth > 768) {
+      return;
+    }
+
     // Add touch event listeners to the entire document
     document.addEventListener("touchstart", (e) => this.handleTouchStart(e), {
       passive: false,
@@ -39,390 +47,494 @@ class TouchControls {
       passive: false,
     });
 
-    // Add canvas-specific touch controls
-    this.setupCanvasTouch();
-
-    // Add virtual buttons for mobile
-    if (this.isTouchDevice) {
-      this.addVirtualButtons();
-    }
-
-    // Add orientation change handling
+    // Handle orientation changes
     window.addEventListener("orientationchange", () => {
-      setTimeout(() => this.handleOrientationChange(), 100);
+      setTimeout(() => {
+        this.isPortrait = window.innerHeight > window.innerWidth;
+        this.updateVirtualButtons();
+      }, 100);
     });
-  }
 
-  setupCanvasTouch() {
-    const canvas = document.getElementById("game-canvas");
-    if (!canvas) return;
+    // Handle resize events
+    window.addEventListener("resize", () => {
+      this.isPortrait = window.innerHeight > window.innerWidth;
+      this.updateVirtualButtons();
+    });
 
-    this.canvas = canvas;
+    // Setup virtual buttons for game screens
+    this.setupVirtualButtons();
 
-    // Prevent default touch behaviors on canvas
-    canvas.addEventListener(
-      "touchstart",
-      (e) => {
-        e.preventDefault();
-        this.handleCanvasTouch(e);
-      },
-      { passive: false }
-    );
+    // Add touch-specific enhancements
+    this.addTouchEnhancements();
 
-    canvas.addEventListener(
-      "touchmove",
-      (e) => {
-        e.preventDefault();
-      },
-      { passive: false }
-    );
-
-    canvas.addEventListener(
-      "touchend",
-      (e) => {
-        e.preventDefault();
-      },
-      { passive: false }
-    );
+    console.log("Touch controls initialized for mobile device");
   }
 
   handleTouchStart(e) {
     if (e.touches.length === 1) {
-      this.touchStartX = e.touches[0].clientX;
-      this.touchStartY = e.touches[0].clientY;
+      const touch = e.touches[0];
+      this.touchStartX = touch.clientX;
+      this.touchStartY = touch.clientY;
       this.isTouch = true;
+
+      // Check for double tap
+      const currentTime = Date.now();
+      if (currentTime - this.lastTouchTime < this.doubleTapDelay) {
+        this.handleDoubleTap(touch);
+      }
+      this.lastTouchTime = currentTime;
     }
   }
 
   handleTouchMove(e) {
     if (!this.isTouch) return;
 
-    // Prevent scrolling during game
-    const gameContainer = document.getElementById("game-container");
-    const characterSelect = document.getElementById("character-select-screen");
+    // Prevent scrolling during touch moves
+    e.preventDefault();
 
-    if (
-      gameContainer?.style.display !== "none" ||
-      characterSelect?.style.display !== "none"
-    ) {
-      e.preventDefault();
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      this.touchEndX = touch.clientX;
+      this.touchEndY = touch.clientY;
     }
   }
 
   handleTouchEnd(e) {
     if (!this.isTouch) return;
 
-    if (e.changedTouches.length === 1) {
-      this.touchEndX = e.changedTouches[0].clientX;
-      this.touchEndY = e.changedTouches[0].clientY;
-
-      this.processSwipe();
-    }
-
     this.isTouch = false;
-  }
 
-  handleCanvasTouch(e) {
-    if (!this.canvas) return;
-
-    const rect = this.canvas.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
-
-    // Convert touch coordinates to game coordinates
-    const gameX = (x / rect.width) * this.canvas.width;
-    const gameY = (y / rect.height) * this.canvas.height;
-
-    // Simulate mouse click for existing game logic
-    const mouseEvent = new MouseEvent("click", {
-      clientX: touch.clientX,
-      clientY: touch.clientY,
-      bubbles: true,
-    });
-
-    this.canvas.dispatchEvent(mouseEvent);
-  }
-
-  processSwipe() {
+    // Calculate swipe distance and direction
     const deltaX = this.touchEndX - this.touchStartX;
     const deltaY = this.touchEndY - this.touchStartY;
     const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
 
-    if (distance < this.minSwipeDistance) {
-      // Tap instead of swipe
-      this.handleTap();
-      return;
+    if (distance > this.minSwipeDistance) {
+      this.handleSwipe(deltaX, deltaY);
+    } else {
+      // Handle tap
+      this.handleTap(this.touchStartX, this.touchStartY);
     }
 
+    // Reset touch coordinates
+    this.touchStartX = 0;
+    this.touchStartY = 0;
+    this.touchEndX = 0;
+    this.touchEndY = 0;
+  }
+
+  handleSwipe(deltaX, deltaY) {
+    const absDeltaX = Math.abs(deltaX);
+    const absDeltaY = Math.abs(deltaY);
+
     // Determine swipe direction
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    if (absDeltaX > absDeltaY) {
       // Horizontal swipe
       if (deltaX > 0) {
-        this.handleSwipe("right");
+        this.onSwipeRight();
       } else {
-        this.handleSwipe("left");
+        this.onSwipeLeft();
       }
     } else {
       // Vertical swipe
       if (deltaY > 0) {
-        this.handleSwipe("down");
+        this.onSwipeDown();
       } else {
-        this.handleSwipe("up");
+        this.onSwipeUp();
       }
     }
   }
 
-  handleTap() {
-    // Handle tap actions (like clicking to continue)
-    const titleScreen = document.getElementById("title-screen");
-    if (titleScreen && !titleScreen.classList.contains("hide")) {
-      // Simulate click on title screen
-      titleScreen.click();
+  handleTap(x, y) {
+    // Handle tap on current screen
+    const currentScreen = this.getCurrentScreen();
+
+    switch (currentScreen) {
+      case "title":
+        this.handleTitleScreenTap(x, y);
+        break;
+      case "character-select":
+        this.handleCharacterSelectTap(x, y);
+        break;
+      case "game":
+        this.handleGameScreenTap(x, y);
+        break;
     }
   }
 
-  handleSwipe(direction) {
-    // Handle swipe gestures
-    console.log(`Swipe ${direction} detected`);
+  handleDoubleTap(touch) {
+    // Handle double tap actions
+    const currentScreen = this.getCurrentScreen();
 
-    // Example: Navigate through menus with swipes
-    // This can be expanded based on game needs
+    if (currentScreen === "game") {
+      // Double tap to pause/unpause
+      this.togglePause();
+    }
   }
 
-  addVirtualButtons() {
-    // Only add virtual buttons if we're in the game screen
+  getCurrentScreen() {
+    const titleScreen = document.getElementById("title-screen");
+    const characterSelectScreen = document.getElementById(
+      "character-select-screen"
+    );
+    const gameContainer = document.getElementById("game-container");
+
+    if (
+      titleScreen &&
+      !titleScreen.classList.contains("hide") &&
+      titleScreen.style.display !== "none"
+    ) {
+      return "title";
+    } else if (
+      characterSelectScreen &&
+      characterSelectScreen.style.display !== "none"
+    ) {
+      return "character-select";
+    } else if (gameContainer && gameContainer.style.display !== "none") {
+      return "game";
+    }
+
+    return "unknown";
+  }
+
+  handleTitleScreenTap(x, y) {
+    // Simulate click on title screen
+    const titleText = document.getElementById("title-text");
+    if (titleText) {
+      titleText.click();
+    }
+  }
+
+  handleCharacterSelectTap(x, y) {
+    // Let the existing character select logic handle the tap
+    // This is mainly for feedback purposes
+    this.addTouchFeedback(x, y);
+  }
+
+  handleGameScreenTap(x, y) {
+    // Handle taps on game screen
+    const canvas = document.getElementById("game-canvas");
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      if (
+        x >= rect.left &&
+        x <= rect.right &&
+        y >= rect.top &&
+        y <= rect.bottom
+      ) {
+        // Tap on canvas - could be used for targeting
+        this.handleCanvasTap(x - rect.left, y - rect.top);
+      }
+    }
+  }
+
+  handleCanvasTap(canvasX, canvasY) {
+    // Handle tap on game canvas
+    // This could be used for selecting targets, etc.
+    console.log(`Canvas tap at: ${canvasX}, ${canvasY}`);
+  }
+
+  onSwipeLeft() {
+    const currentScreen = this.getCurrentScreen();
+    if (currentScreen === "character-select") {
+      // Swipe left to go to next character page or scroll
+      this.scrollSelectedCharacters("left");
+    }
+  }
+
+  onSwipeRight() {
+    const currentScreen = this.getCurrentScreen();
+    if (currentScreen === "character-select") {
+      // Swipe right to go to previous character page or scroll
+      this.scrollSelectedCharacters("right");
+    }
+  }
+
+  onSwipeUp() {
+    const currentScreen = this.getCurrentScreen();
+    if (currentScreen === "character-select") {
+      // Swipe up to scroll character grid up
+      this.scrollCharacterGrid("up");
+    }
+  }
+
+  onSwipeDown() {
+    const currentScreen = this.getCurrentScreen();
+    if (currentScreen === "character-select") {
+      // Swipe down to scroll character grid down
+      this.scrollCharacterGrid("down");
+    }
+  }
+
+  scrollSelectedCharacters(direction) {
+    const selectedCharacters = document.getElementById("selected-characters");
+    if (selectedCharacters) {
+      const scrollAmount = selectedCharacters.clientWidth * 0.5;
+      if (direction === "left") {
+        selectedCharacters.scrollLeft += scrollAmount;
+      } else {
+        selectedCharacters.scrollLeft -= scrollAmount;
+      }
+    }
+  }
+
+  scrollCharacterGrid(direction) {
+    const characterGrids = document.querySelector(".character-grids-container");
+    if (characterGrids) {
+      const scrollAmount = characterGrids.clientHeight * 0.3;
+      if (direction === "up") {
+        characterGrids.scrollTop -= scrollAmount;
+      } else {
+        characterGrids.scrollTop += scrollAmount;
+      }
+    }
+  }
+
+  setupVirtualButtons() {
+    // Only show virtual buttons during gameplay
     const gameContainer = document.getElementById("game-container");
     if (!gameContainer) return;
 
-    // Create virtual button container
-    const virtualButtonContainer = document.createElement("div");
-    virtualButtonContainer.id = "virtual-buttons";
-    virtualButtonContainer.style.cssText = `
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 1000;
-      display: none;
-      flex-direction: column;
-      gap: 10px;
-      pointer-events: none;
-    `;
+    // Create virtual buttons container
+    let virtualButtonsContainer = document.getElementById("virtual-buttons");
+    if (!virtualButtonsContainer) {
+      virtualButtonsContainer = document.createElement("div");
+      virtualButtonsContainer.id = "virtual-buttons";
+      virtualButtonsContainer.style.cssText = `
+        position: fixed;
+        bottom: 1vh;
+        right: 2vw;
+        display: none;
+        flex-direction: column;
+        gap: 1vh;
+        z-index: 1000;
+        pointer-events: none;
+      `;
+      document.body.appendChild(virtualButtonsContainer);
+    }
 
-    // Add menu button
+    // Create menu button
     const menuButton = this.createVirtualButton("☰", "Menu", () => {
-      this.showGameMenu();
+      this.toggleGameMenu();
     });
 
-    // Add pause button
+    // Create pause button
     const pauseButton = this.createVirtualButton("⏸️", "Pause", () => {
-      this.pauseGame();
+      this.togglePause();
     });
 
-    virtualButtonContainer.appendChild(menuButton);
-    virtualButtonContainer.appendChild(pauseButton);
+    virtualButtonsContainer.appendChild(menuButton);
+    virtualButtonsContainer.appendChild(pauseButton);
 
-    document.body.appendChild(virtualButtonContainer);
-
-    // Show virtual buttons when game is active
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (
-          mutation.type === "attributes" &&
-          mutation.attributeName === "style"
-        ) {
-          const isGameVisible = gameContainer.style.display !== "none";
-          virtualButtonContainer.style.display = isGameVisible
-            ? "flex"
-            : "none";
-        }
-      });
-    });
-
-    observer.observe(gameContainer, { attributes: true });
+    this.virtualButtons = [menuButton, pauseButton];
   }
 
-  createVirtualButton(text, label, onClick) {
+  createVirtualButton(text, title, onClick) {
     const button = document.createElement("button");
     button.textContent = text;
-    button.title = label;
-    button.className = "virtual-btn";
+    button.title = title;
+    button.className = "virtual-btn snes-btn";
     button.style.cssText = `
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.7);
-      color: white;
+      width: 10vw;
+      height: 10vw;
+      font-size: 3vw;
       border: 2px solid #fff;
-      font-size: 24px;
-      cursor: pointer;
-      pointer-events: auto;
-      touch-action: manipulation;
+      border-radius: 50%;
+      background: rgba(75, 54, 124, 0.9);
+      color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-      transition: all 0.2s ease;
+      cursor: pointer;
+      touch-action: manipulation;
+      pointer-events: auto;
+      text-shadow: 1px 1px 0 #000;
+      backdrop-filter: blur(4px);
     `;
 
     button.addEventListener("touchstart", (e) => {
       e.preventDefault();
       e.stopPropagation();
       button.style.transform = "scale(0.9)";
-      button.style.background = "rgba(255, 255, 255, 0.2)";
     });
 
     button.addEventListener("touchend", (e) => {
       e.preventDefault();
       e.stopPropagation();
       button.style.transform = "scale(1)";
-      button.style.background = "rgba(0, 0, 0, 0.7)";
       onClick();
     });
 
     return button;
   }
 
-  showGameMenu() {
-    // Show in-game menu
-    const menuModal = document.getElementById("menu-modal");
-    if (menuModal) {
-      menuModal.style.display = "flex";
+  updateVirtualButtons() {
+    const virtualButtonsContainer = document.getElementById("virtual-buttons");
+    const gameContainer = document.getElementById("game-container");
+
+    if (virtualButtonsContainer && gameContainer) {
+      // Show virtual buttons only during gameplay on mobile
+      if (
+        this.isTouchDevice &&
+        window.innerWidth <= 768 &&
+        gameContainer.style.display !== "none"
+      ) {
+        virtualButtonsContainer.style.display = "flex";
+      } else {
+        virtualButtonsContainer.style.display = "none";
+      }
     }
   }
 
-  pauseGame() {
-    // Pause game functionality
-    console.log("Game paused via touch");
-    // Add your pause game logic here
+  toggleGameMenu() {
+    // Try to find and click the menu button
+    const menuBtn =
+      document.getElementById("char-menu-btn") ||
+      document.getElementById("fight-menu-btn");
+    if (menuBtn) {
+      menuBtn.click();
+    }
   }
 
-  handleOrientationChange() {
-    // Handle orientation changes
-    const gameCanvas = document.getElementById("game-canvas");
-    if (gameCanvas && typeof resizeCanvas === "function") {
-      resizeCanvas();
-    }
-
-    // Notify user about optimal orientation
-    if (window.orientation === 90 || window.orientation === -90) {
-      // Landscape mode
-      this.showOrientationHint("landscape");
+  togglePause() {
+    // Try to find and click the pause functionality
+    // This depends on the game's pause implementation
+    const pauseBtn = document.querySelector('[data-action="pause"]');
+    if (pauseBtn) {
+      pauseBtn.click();
     } else {
-      // Portrait mode
-      this.showOrientationHint("portrait");
+      // Try to trigger pause via key event
+      const pauseEvent = new KeyboardEvent("keydown", { key: "Escape" });
+      document.dispatchEvent(pauseEvent);
     }
   }
 
-  showOrientationHint(orientation) {
-    const existingHint = document.getElementById("orientation-hint");
-    if (existingHint) {
-      existingHint.remove();
-    }
-
-    const hint = document.createElement("div");
-    hint.id = "orientation-hint";
-    hint.style.cssText = `
+  addTouchFeedback(x, y) {
+    // Create visual feedback for touch
+    const feedback = document.createElement("div");
+    feedback.style.cssText = `
       position: fixed;
-      top: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 10px 20px;
-      border-radius: 20px;
-      font-size: 14px;
-      z-index: 10000;
+      left: ${x - 15}px;
+      top: ${y - 15}px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.5);
       pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.3s ease;
+      z-index: 9999;
+      animation: touch-feedback 0.3s ease-out forwards;
     `;
 
-    const message =
-      orientation === "landscape"
-        ? "📱 Rotated to landscape mode"
-        : "📱 Rotated to portrait mode";
-
-    hint.textContent = message;
-    document.body.appendChild(hint);
-
-    // Fade in
-    setTimeout(() => {
-      hint.style.opacity = "1";
-    }, 100);
-
-    // Fade out after 3 seconds
-    setTimeout(() => {
-      hint.style.opacity = "0";
-      setTimeout(() => {
-        if (hint.parentNode) {
-          hint.parentNode.removeChild(hint);
+    // Add CSS animation
+    if (!document.getElementById("touch-feedback-styles")) {
+      const style = document.createElement("style");
+      style.id = "touch-feedback-styles";
+      style.textContent = `
+        @keyframes touch-feedback {
+          0% {
+            transform: scale(0.5);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(2);
+            opacity: 0;
+          }
         }
-      }, 300);
-    }, 3000);
+      `;
+      document.head.appendChild(style);
+    }
+
+    document.body.appendChild(feedback);
+
+    // Remove feedback after animation
+    setTimeout(() => {
+      if (feedback.parentNode) {
+        feedback.parentNode.removeChild(feedback);
+      }
+    }, 300);
   }
 
-  // Public methods for game integration
-  enableTouchControls() {
-    document.body.classList.add("touch-enabled");
-  }
+  addTouchEnhancements() {
+    // Add touch-specific CSS classes
+    document.body.classList.add("touch-device");
 
-  disableTouchControls() {
-    document.body.classList.remove("touch-enabled");
-  }
+    // Prevent context menu on long press
+    document.addEventListener("contextmenu", (e) => {
+      if (this.isTouchDevice) {
+        e.preventDefault();
+      }
+    });
 
-  isTouchSupported() {
-    return this.isTouchDevice;
+    // Prevent zoom on double tap
+    document.addEventListener(
+      "touchstart",
+      (e) => {
+        if (e.touches.length > 1) {
+          e.preventDefault();
+        }
+      },
+      { passive: false }
+    );
+
+    // Enhanced button press feedback
+    document.addEventListener(
+      "touchstart",
+      (e) => {
+        if (
+          e.target.matches(
+            ".snes-btn, .attack-btn, .difficulty-btn, .sprite-option"
+          )
+        ) {
+          e.target.style.transform = "scale(0.95)";
+          e.target.style.filter = "brightness(0.9)";
+        }
+      },
+      { passive: true }
+    );
+
+    document.addEventListener(
+      "touchend",
+      (e) => {
+        if (
+          e.target.matches(
+            ".snes-btn, .attack-btn, .difficulty-btn, .sprite-option"
+          )
+        ) {
+          setTimeout(() => {
+            e.target.style.transform = "";
+            e.target.style.filter = "";
+          }, 100);
+        }
+      },
+      { passive: true }
+    );
   }
 }
 
-// Initialize touch controls
-let touchControls;
-
-// Wait for DOM to be ready
+// Initialize touch controls when DOM is ready
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
-    touchControls = new TouchControls();
+    new TouchControls();
   });
 } else {
-  touchControls = new TouchControls();
+  new TouchControls();
 }
 
-// Export for global use
-window.touchControls = touchControls;
-
-// Add some utility functions
-window.isMobile = function () {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-  );
-};
-
-window.isTablet = function () {
-  return (
-    /iPad|Android(?!.*Mobile)/i.test(navigator.userAgent) &&
-    window.innerWidth >= 768
-  );
-};
-
-// Add touch-specific CSS if needed
-if (touchControls?.isTouchSupported()) {
-  const style = document.createElement("style");
-  style.textContent = `
-    .touch-enabled {
-      touch-action: manipulation;
+// Observer to update virtual buttons when screen changes
+const touchControls = new TouchControls();
+const observer = new MutationObserver((mutations) => {
+  mutations.forEach((mutation) => {
+    if (mutation.type === "attributes" && mutation.attributeName === "style") {
+      touchControls.updateVirtualButtons();
     }
-    
-    .touch-enabled .snes-btn,
-    .touch-enabled .attack-btn {
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-tap-highlight-color: rgba(0,0,0,0);
-    }
-    
-    .virtual-btn:active {
-      transform: scale(0.9) !important;
-    }
-  `;
-  document.head.appendChild(style);
+  });
+});
+
+// Observe game container for display changes
+const gameContainer = document.getElementById("game-container");
+if (gameContainer) {
+  observer.observe(gameContainer, {
+    attributes: true,
+    attributeFilter: ["style"],
+  });
 }
