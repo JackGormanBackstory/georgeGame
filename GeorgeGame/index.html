@@ -2,27 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>4 Player Bowser Fight Game</title>
     <link
       href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css?v=1" />
+    <link rel="stylesheet" href="mobile-enhancements.css?v=1" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json" />
-    <meta name="theme-color" content="#4b367c" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
-    <meta name="apple-mobile-web-app-title" content="George Game" />
-    <script src="pwa-handler.js"></script>
-    <!-- Simple Update Checker (Beginner-Friendly Alternative) -->
-    <!-- Uncomment the line below and comment out pwa-handler.js to use the simple version -->
-    <!-- <script src="simple-update-checker.js"></script> -->
   </head>
   <body>
     <div id="title-screen">
@@ -170,15 +161,7 @@
       <div id="character-select-controls">
         <button id="load-save-select" class="snes-btn">Load save</button>
         <button id="start-fight" class="snes-btn" disabled>Start fight</button>
-        <div id="music-controls-select">
-          <button
-            id="check-updates-btn"
-            class="snes-btn"
-            onclick="if(window.pwaHandler) window.pwaHandler.manualUpdateCheck()"
-          >
-            Check Updates
-          </button>
-        </div>
+        <div id="music-controls-select"></div>
       </div>
     </div>
     <div id="game-container" style="display: none">
@@ -272,5 +255,6 @@
       </div>
     </div>
     <script src="game.js"></script>
+    <script src="touch-controls.js"></script>
   </body>
 </html>
